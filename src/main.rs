@@ -70,7 +70,7 @@ mod app {
         end::spawn_after(Duration::millis(5000)).unwrap();
 
         // start main loop
-        run::spawn().unwrap();
+        run::spawn_after(Duration::millis(1)).unwrap();
 
         (
             Shared { isolator },
