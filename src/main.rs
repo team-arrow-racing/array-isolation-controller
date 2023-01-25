@@ -105,7 +105,7 @@ mod app {
 
         cx.local.watchdog.feed();
 
-        run::spawn_after(Duration::millis(50)).unwrap();
+        run::spawn_after(Duration::millis(10)).unwrap();
     }
 
     #[idle]
