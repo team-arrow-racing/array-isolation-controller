@@ -10,7 +10,15 @@ use stm32_hal2::{
     gpio::{Pin, PinMode, Port},
 };
 
-use systick_monotonic::{fugit::MillisDurationU64, Systick};
+use stm32l4xx_hal::prelude::{
+    _embedded_hal_watchdog_Watchdog, _embedded_hal_watchdog_WatchdogEnable,
+};
+use stm32l4xx_hal::watchdog::IndependentWatchdog;
+
+use systick_monotonic::{
+    fugit::{MillisDurationU32, MillisDurationU64},
+    Systick,
+};
 
 type Duration = MillisDurationU64;
 
@@ -30,7 +38,9 @@ mod app {
     }
 
     #[local]
-    struct Local {}
+    struct Local {
+        watchdog: stm32l4xx_hal::watchdog::IndependentWatchdog,
+    }
 
     #[init]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
@@ -47,11 +57,20 @@ mod app {
             positive: Pin::new(Port::B, 0, PinMode::Output),
         });
 
+        // watchdog setup
+        let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);
+        watchdog.stop_on_debug(&cx.device.DBGMCU, true);
+        watchdog.start(MillisDurationU32::millis(100));
+
         run::spawn().unwrap();
         start::spawn_after(Duration::millis(1000)).unwrap();
         end::spawn_after(Duration::millis(5000)).unwrap();
 
-        (Shared { isolator }, Local {}, init::Monotonics(mono))
+        (
+            Shared { isolator },
+            Local { watchdog },
+            init::Monotonics(mono),
+        )
     }
 
     #[idle]
@@ -79,11 +98,13 @@ mod app {
         });
     }
 
-    #[task(shared = [isolator])]
+    #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
         cx.shared.isolator.lock(|isolator| {
             isolator.run(monotonics::now());
         });
+
+        cx.local.watchdog.feed();
 
         run::spawn_after(Duration::millis(50)).unwrap();
     }
