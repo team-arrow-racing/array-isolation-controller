@@ -1,5 +1,5 @@
 use stm32_hal2::gpio::Pin;
-use systick_monotonic::fugit::{TimerInstantU64, MillisDurationU64};
+use systick_monotonic::fugit::{MillisDurationU64, TimerInstantU64};
 
 type Instant = TimerInstantU64<1000>;
 type Duration = MillisDurationU64;
@@ -80,7 +80,7 @@ impl Isolator {
                 self.precharge.set_low();
                 self.negative.set_high();
                 self.positive.set_high();
-            },
+            }
         }
 
         match self.state {
