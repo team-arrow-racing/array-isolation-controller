@@ -1,5 +1,8 @@
 use stm32_hal2::gpio::Pin;
-use systick_monotonic::fugit::{Instant, MillisDurationU64};
+use systick_monotonic::fugit::{TimerInstantU64, MillisDurationU64};
+
+type Instant = TimerInstantU64<1000>;
+type Duration = MillisDurationU64;
 
 #[derive(Clone, Copy, Debug)]
 pub enum IsolatorState {
@@ -10,8 +13,8 @@ pub enum IsolatorState {
 
 #[derive(Clone, Copy, Debug)]
 pub enum PrechargeState {
-    Negative { start: Instant<u64, 1, 1000> },
-    Charging { start: Instant<u64, 1, 1000> },
+    Negative { start: Instant },
+    Charging { start: Instant },
 }
 
 pub struct Isolator {
@@ -41,7 +44,7 @@ impl Isolator {
                 defmt::trace!("contactors common negative.");
                 IsolatorState::Precharging {
                     state: PrechargeState::Negative {
-                        start: Instant::<u64, 1, 1000>::from_ticks(100),
+                        start: Instant::from_ticks(100),
                     },
                 }
             },
@@ -54,7 +57,7 @@ impl Isolator {
         defmt::trace!("contactors isolated.");
     }
 
-    pub fn run(&mut self, time: Instant<u64, 1, 1000>) {
+    pub fn run(&mut self, time: Instant) {
         match self.state {
             IsolatorState::Isolated => {
                 self.precharge.set_low();
@@ -84,7 +87,7 @@ impl Isolator {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { start } => {
-                    let duration = MillisDurationU64::from_ticks(1000);
+                    let duration = Duration::from_ticks(1000);
                     let elapsed = time.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
@@ -95,7 +98,7 @@ impl Isolator {
                     }
                 }
                 PrechargeState::Charging { start } => {
-                    let duration = MillisDurationU64::from_ticks(1000);
+                    let duration = Duration::from_ticks(1000);
                     let elapsed = time.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
