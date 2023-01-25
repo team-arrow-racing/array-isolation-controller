@@ -12,6 +12,8 @@ use stm32_hal2::{
 
 use systick_monotonic::{fugit::MillisDurationU64, Systick};
 
+type Duration = MillisDurationU64;
+
 mod isolator;
 use crate::isolator::Isolator;
 
@@ -46,8 +48,8 @@ mod app {
         );
 
         run::spawn().unwrap();
-        start::spawn_after(MillisDurationU64::millis(1000)).unwrap();
-        end::spawn_after(MillisDurationU64::millis(5000)).unwrap();
+        start::spawn_after(Duration::millis(1000)).unwrap();
+        end::spawn_after(Duration::millis(5000)).unwrap();
 
         (Shared { isolator }, Local {}, init::Monotonics(mono))
     }
@@ -83,7 +85,7 @@ mod app {
             isolator.run(monotonics::now());
         });
 
-        run::spawn_after(MillisDurationU64::millis(50)).unwrap();
+        run::spawn_after(Duration::millis(50)).unwrap();
     }
 
     defmt::timestamp!("{=u64}ms", {
