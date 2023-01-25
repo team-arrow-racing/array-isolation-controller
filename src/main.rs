@@ -87,8 +87,7 @@ mod app {
     }
 
     defmt::timestamp!("{=u32}ms", {
-        let tick: u32 = monotonics::now().ticks().try_into().unwrap();
-        tick
+        monotonics::now().ticks().try_into().unwrap()
     });
 }
 
