@@ -42,11 +42,12 @@ impl Isolator {
 
     pub fn start_precharge(&mut self) {
         self.state = match self.state {
+    pub fn start_precharge(&mut self, time: Instant) {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");
                 IsolatorState::Precharging {
                     state: PrechargeState::Negative {
-                        start: Instant::from_ticks(100),
+                        start: time,
                     },
                 }
             },

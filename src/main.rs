@@ -84,7 +84,7 @@ mod app {
         defmt::info!("starting precharge.");
 
         cx.shared.isolator.lock(|isolator| {
-            isolator.start_precharge();
+            isolator.start_precharge(monotonics::now());
         });
     }
 
