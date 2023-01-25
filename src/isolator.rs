@@ -1,5 +1,5 @@
 use stm32_hal2::gpio::Pin;
-use systick_monotonic::fugit::{Duration, Instant};
+use systick_monotonic::fugit::{MillisDurationU64, Instant};
 
 #[derive(Clone, Copy, Debug)]
 pub enum IsolatorState {
@@ -84,15 +84,17 @@ impl Isolator {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { start } => {
-                    let duration = Duration::<u64, 1, 1000>::from_ticks(1000);
+                    let duration = MillisDurationU64::from_ticks(1000);
                     let elapsed = time.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
-                        self.state = IsolatorState::Precharging { state: PrechargeState::Charging { start: time } };
+                        self.state = IsolatorState::Precharging {
+                            state: PrechargeState::Charging { start: time },
+                        };
                     }
                 }
                 PrechargeState::Charging { start } => {
-                    let duration = Duration::<u64, 1, 1000>::from_ticks(1000);
+                    let duration = MillisDurationU64::from_ticks(1000);
                     let elapsed = time.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {

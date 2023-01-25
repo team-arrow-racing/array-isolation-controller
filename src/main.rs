@@ -10,10 +10,7 @@ use stm32_hal2::{
     gpio::{Pin, PinMode, Port},
 };
 
-use systick_monotonic::{
-    fugit::Duration,
-    Systick,
-};
+use systick_monotonic::{fugit::MillisDurationU64, Systick};
 
 mod isolator;
 use crate::isolator::Isolator;
@@ -49,8 +46,8 @@ mod app {
         );
 
         run::spawn().unwrap();
-        start::spawn_after(Duration::<u64, 1, 1000>::millis(1000)).unwrap();
-        end::spawn_after(Duration::<u64, 1, 1000>::millis(5000)).unwrap();
+        start::spawn_after(MillisDurationU64::millis(1000)).unwrap();
+        end::spawn_after(MillisDurationU64::millis(5000)).unwrap();
 
         (Shared { isolator }, Local {}, init::Monotonics(mono))
     }
@@ -86,7 +83,7 @@ mod app {
             isolator.run(monotonics::now());
         });
 
-        run::spawn_after(Duration::<u64, 1, 1000>::millis(50)).unwrap();
+        run::spawn_after(MillisDurationU64::millis(50)).unwrap();
     }
 
     defmt::timestamp!("{=u32}ms", {
