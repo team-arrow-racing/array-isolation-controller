@@ -41,11 +41,11 @@ mod app {
 
         let mono = Systick::new(cx.core.SYST, clock_cfg.systick());
 
-        let isolator = Isolator::new(
-            Pin::new(Port::A, 5, PinMode::Output),
-            Pin::new(Port::B, 1, PinMode::Output),
-            Pin::new(Port::B, 0, PinMode::Output),
-        );
+        let isolator = Isolator::new(isolator::Contactors {
+            precharge: Pin::new(Port::A, 5, PinMode::Output),
+            negative: Pin::new(Port::B, 1, PinMode::Output),
+            positive: Pin::new(Port::B, 0, PinMode::Output),
+        });
 
         run::spawn().unwrap();
         start::spawn_after(Duration::millis(1000)).unwrap();

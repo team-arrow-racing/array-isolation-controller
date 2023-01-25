@@ -17,20 +17,22 @@ pub enum PrechargeState {
     Charging { start: Instant },
 }
 
+pub struct Contactors {
+    pub precharge: Pin,
+    pub negative: Pin,
+    pub positive: Pin,
+}
+
 pub struct Isolator {
     state: IsolatorState,
-    precharge: Pin,
-    negative: Pin,
-    positive: Pin,
+    contactors: Contactors,
 }
 
 impl Isolator {
-    pub fn new(precharge: Pin, negative: Pin, positive: Pin) -> Self {
+    pub fn new(contactors: Contactors) -> Self {
         Isolator {
             state: IsolatorState::Isolated,
-            precharge: precharge,
-            negative: negative,
-            positive: positive,
+            contactors,
         }
     }
 
@@ -60,26 +62,26 @@ impl Isolator {
     pub fn run(&mut self, time: Instant) {
         match self.state {
             IsolatorState::Isolated => {
-                self.precharge.set_low();
-                self.negative.set_low();
-                self.positive.set_low();
+                self.contactors.precharge.set_low();
+                self.contactors.negative.set_low();
+                self.contactors.positive.set_low();
             }
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { .. } => {
-                    self.precharge.set_low();
-                    self.negative.set_high();
-                    self.positive.set_low();
+                    self.contactors.precharge.set_low();
+                    self.contactors.negative.set_high();
+                    self.contactors.positive.set_low();
                 }
                 PrechargeState::Charging { .. } => {
-                    self.precharge.set_high();
-                    self.negative.set_high();
-                    self.positive.set_low();
+                    self.contactors.precharge.set_high();
+                    self.contactors.negative.set_high();
+                    self.contactors.positive.set_low();
                 }
             },
             IsolatorState::Engaged => {
-                self.precharge.set_low();
-                self.negative.set_high();
-                self.positive.set_high();
+                self.contactors.precharge.set_low();
+                self.contactors.negative.set_high();
+                self.contactors.positive.set_high();
             }
         }
 
