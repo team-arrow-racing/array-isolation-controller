@@ -40,16 +40,16 @@ impl Isolator {
         self.state
     }
 
-    pub fn start_precharge(&mut self) {
-        self.state = match self.state {
     pub fn start_precharge(&mut self, time: Instant) {
+        match self.state {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");
-                IsolatorState::Precharging {
+                self.state = IsolatorState::Precharging {
                     state: PrechargeState::Negative {
                         start: time,
                     },
-                }
+                };
+                self.update_outputs();
             },
             _ => panic!("invalid state transition: isolator was not in the isolated state when precharge was requested"),
         }
@@ -57,10 +57,11 @@ impl Isolator {
 
     pub fn isolate(&mut self) {
         self.state = IsolatorState::Isolated;
+        self.update_outputs();
         defmt::trace!("contactors isolated.");
     }
 
-    pub fn run(&mut self, time: Instant) {
+    fn update_outputs(&mut self) {
         match self.state {
             IsolatorState::Isolated => {
                 self.contactors.precharge.set_low();
@@ -85,6 +86,10 @@ impl Isolator {
                 self.contactors.positive.set_high();
             }
         }
+    }
+
+    pub fn run(&mut self, time: Instant) {
+        self.update_outputs();
 
         match self.state {
             IsolatorState::Isolated => {}
