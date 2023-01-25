@@ -56,28 +56,27 @@ impl Isolator {
                 self.precharge.set_low();
                 self.negative.set_low();
                 self.positive.set_low();
+                defmt::trace!("contactors isolated.");
             }
             IsolatorState::Precharging { state } => match state {
-                PrechargeState::Open { .. } => {
-                    self.precharge.set_low();
-                    self.negative.set_low();
-                    self.positive.set_low();
-                }
                 PrechargeState::Negative { .. } => {
                     self.precharge.set_low();
                     self.negative.set_high();
                     self.positive.set_low();
+                    defmt::trace!("contactors common negative.");
                 }
                 PrechargeState::Charging { .. } => {
                     self.precharge.set_high();
                     self.negative.set_high();
                     self.positive.set_low();
+                    defmt::trace!("contactors charging load.");
                 }
             },
             IsolatorState::Engaged => {
                 self.precharge.set_low();
                 self.negative.set_high();
                 self.positive.set_high();
+                defmt::trace!("contactors engaged.");
             }
         }
 
