@@ -89,8 +89,6 @@ impl Isolator {
     }
 
     pub fn run(&mut self, time: Instant) {
-        self.update_outputs();
-
         match self.state {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
@@ -117,5 +115,7 @@ impl Isolator {
             },
             IsolatorState::Engaged => {}
         }
+
+        self.update_outputs();
     }
 }
