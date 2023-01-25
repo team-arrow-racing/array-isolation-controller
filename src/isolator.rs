@@ -1,5 +1,5 @@
 use stm32_hal2::gpio::Pin;
-use systick_monotonic::fugit::{MillisDurationU64, Instant};
+use systick_monotonic::fugit::{Instant, MillisDurationU64};
 
 #[derive(Clone, Copy, Debug)]
 pub enum IsolatorState {
