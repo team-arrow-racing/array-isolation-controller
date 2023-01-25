@@ -1,5 +1,5 @@
 [package]
-name = "array-control-unit"
+name = "array-isolation-controller"
 version = "0.1.0"
 edition = "2021"
 
