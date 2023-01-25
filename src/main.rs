@@ -39,7 +39,7 @@ mod app {
 
     #[local]
     struct Local {
-        watchdog: stm32l4xx_hal::watchdog::IndependentWatchdog,
+        watchdog: IndependentWatchdog,
     }
 
     #[init]
