@@ -46,38 +46,37 @@ mod app {
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
+        // configure system clocks
         let clock_cfg = Clocks::default();
         clock_cfg.setup().unwrap();
 
+        // configure monotonic time
         let mono = Systick::new(cx.core.SYST, clock_cfg.systick());
 
+        // configure contactors
         let isolator = Isolator::new(isolator::Contactors {
             precharge: Pin::new(Port::A, 5, PinMode::Output),
             negative: Pin::new(Port::B, 1, PinMode::Output),
             positive: Pin::new(Port::B, 0, PinMode::Output),
         });
 
-        // watchdog setup
+        // configure watchdog
         let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);
         watchdog.stop_on_debug(&cx.device.DBGMCU, true);
         watchdog.start(MillisDurationU32::millis(100));
 
-        run::spawn().unwrap();
+        // schedule some state transitions whilst we don't have CAN bus working
         start::spawn_after(Duration::millis(1000)).unwrap();
         end::spawn_after(Duration::millis(5000)).unwrap();
+
+        // start main loop
+        run::spawn().unwrap();
 
         (
             Shared { isolator },
             Local { watchdog },
             init::Monotonics(mono),
         )
-    }
-
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        loop {
-            cortex_m::asm::nop();
-        }
     }
 
     #[task(shared = [isolator])]
@@ -109,6 +108,18 @@ mod app {
         run::spawn_after(Duration::millis(50)).unwrap();
     }
 
+    #[idle]
+    fn idle(_: idle::Context) -> ! {
+        // if the idle task is entered (there is no scheduled tasks) we will
+        // idle until the watchdog timer resets the device.
+
+        loop {
+            // prevent loop from being optomised away.
+            cortex_m::asm::nop();
+        }
+    }
+
+    // show millisecond timestamp in debug log
     defmt::timestamp!("{=u64}ms", { monotonics::now().ticks() });
 }
 
