@@ -37,17 +37,21 @@ impl Isolator {
 
     pub fn start_precharge(&mut self) {
         self.state = match self.state {
-            IsolatorState::Isolated => IsolatorState::Precharging {
-                state: PrechargeState::Negative {
-                    start: Instant::<u64, 1, 1000>::from_ticks(100),
-                },
+            IsolatorState::Isolated => {
+                defmt::trace!("contactors common negative.");
+                IsolatorState::Precharging {
+                    state: PrechargeState::Negative {
+                        start: Instant::<u64, 1, 1000>::from_ticks(100),
+                    },
+                }
             },
-            _ => panic!("Invalid state transition."),
+            _ => panic!("invalid state transition: isolator was not in the isolated state when precharge was requested"),
         }
     }
 
     pub fn isolate(&mut self) {
         self.state = IsolatorState::Isolated;
+        defmt::trace!("contactors isolated.");
     }
 
     pub fn run(&mut self, time: Instant<u64, 1, 1000>) {
@@ -56,28 +60,24 @@ impl Isolator {
                 self.precharge.set_low();
                 self.negative.set_low();
                 self.positive.set_low();
-                defmt::trace!("contactors isolated.");
             }
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { .. } => {
                     self.precharge.set_low();
                     self.negative.set_high();
                     self.positive.set_low();
-                    defmt::trace!("contactors common negative.");
                 }
                 PrechargeState::Charging { .. } => {
                     self.precharge.set_high();
                     self.negative.set_high();
                     self.positive.set_low();
-                    defmt::trace!("contactors charging load.");
                 }
             },
             IsolatorState::Engaged => {
                 self.precharge.set_low();
                 self.negative.set_high();
                 self.positive.set_high();
-                defmt::trace!("contactors engaged.");
-            }
+            },
         }
 
         match self.state {
@@ -91,6 +91,7 @@ impl Isolator {
                         self.state = IsolatorState::Precharging {
                             state: PrechargeState::Charging { start: time },
                         };
+                        defmt::trace!("contactors charging load.");
                     }
                 }
                 PrechargeState::Charging { start } => {
@@ -99,6 +100,7 @@ impl Isolator {
 
                     if elapsed > duration {
                         self.state = IsolatorState::Engaged;
+                        defmt::trace!("contactors engaged.");
                     }
                 }
             },
