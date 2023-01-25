@@ -88,9 +88,7 @@ mod app {
         run::spawn_after(Duration::millis(50)).unwrap();
     }
 
-    defmt::timestamp!("{=u64}ms", {
-        monotonics::now().ticks()
-    });
+    defmt::timestamp!("{=u64}ms", { monotonics::now().ticks() });
 }
 
 // same panicking *behavior* as `panic-probe` but doesn't print a panic message
