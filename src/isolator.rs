@@ -10,7 +10,6 @@ pub enum IsolatorState {
 
 #[derive(Clone, Copy, Debug)]
 pub enum PrechargeState {
-    Open { start: Instant<u64, 1, 1000> },
     Negative { start: Instant<u64, 1, 1000> },
     Charging { start: Instant<u64, 1, 1000> },
 }
@@ -39,7 +38,9 @@ impl Isolator {
     pub fn start_precharge(&mut self) {
         self.state = match self.state {
             IsolatorState::Isolated => IsolatorState::Precharging {
-                state: PrechargeState::Open { start: Instant::<u64, 1, 1000>::from_ticks(100) },
+                state: PrechargeState::Negative {
+                    start: Instant::<u64, 1, 1000>::from_ticks(100),
+                },
             },
             _ => panic!("Invalid state transition."),
         }
@@ -77,20 +78,12 @@ impl Isolator {
                 self.precharge.set_low();
                 self.negative.set_high();
                 self.positive.set_high();
-            },
+            }
         }
 
         match self.state {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
-                PrechargeState::Open { start } => {
-                    let duration = Duration::<u64, 1, 1000>::from_ticks(1000);
-                    let elapsed = time.checked_duration_since(start).unwrap();
-
-                    if elapsed > duration {
-                        self.state = IsolatorState::Precharging { state: PrechargeState::Negative { start: time } };
-                    }
-                }
                 PrechargeState::Negative { start } => {
                     let duration = Duration::<u64, 1, 1000>::from_ticks(1000);
                     let elapsed = time.checked_duration_since(start).unwrap();
@@ -108,7 +101,7 @@ impl Isolator {
                     }
                 }
             },
-            IsolatorState::Engaged => {},
+            IsolatorState::Engaged => {}
         }
     }
 }
