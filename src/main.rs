@@ -86,8 +86,8 @@ mod app {
         run::spawn_after(MillisDurationU64::millis(50)).unwrap();
     }
 
-    defmt::timestamp!("{=u32}ms", {
-        monotonics::now().ticks().try_into().unwrap()
+    defmt::timestamp!("{=u64}ms", {
+        monotonics::now().ticks()
     });
 }
 
