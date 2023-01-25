@@ -1,7 +1,6 @@
 #![no_main]
 #![no_std]
 
-use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
 use panic_probe as _;
 
@@ -89,6 +88,11 @@ mod app {
 
         run::spawn_after(Duration::<u64, 1, 1000>::millis(50)).unwrap();
     }
+
+    defmt::timestamp!("{=u32}ms", {
+        let tick: u32 = monotonics::now().ticks().try_into().unwrap();
+        tick
+    });
 }
 
 // same panicking *behavior* as `panic-probe` but doesn't print a panic message
@@ -97,14 +101,6 @@ mod app {
 fn panic() -> ! {
     cortex_m::asm::udf()
 }
-
-static COUNT: AtomicUsize = AtomicUsize::new(0);
-defmt::timestamp!("{=usize}", {
-    // NOTE(no-CAS) `timestamps` runs with interrupts disabled
-    let n = COUNT.load(Ordering::Relaxed);
-    COUNT.store(n + 1, Ordering::Relaxed);
-    n
-});
 
 /// Terminates the application and makes `probe-run` exit with exit-code = 0
 pub fn exit() -> ! {
