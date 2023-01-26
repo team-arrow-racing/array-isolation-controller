@@ -25,7 +25,7 @@ type Duration = MillisDurationU64;
 mod isolator;
 use crate::isolator::Isolator;
 
-#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1])]
+#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1, SPI2, SPI3])]
 mod app {
     use super::*;
 
@@ -72,6 +72,9 @@ mod app {
         // start main loop
         run::spawn_after(Duration::millis(1)).unwrap();
 
+        // start heartbeat
+        heartbeat::spawn_after(Duration::millis(1)).unwrap();
+
         (
             Shared { isolator },
             Local { watchdog },
@@ -97,7 +100,7 @@ mod app {
         });
     }
 
-    #[task(shared = [isolator], local = [watchdog])]
+    #[task(shared = [isolator], local = [watchdog], priority = 3)]
     fn run(mut cx: run::Context) {
         cx.shared.isolator.lock(|isolator| {
             isolator.run(monotonics::now());
@@ -106,6 +109,14 @@ mod app {
         cx.local.watchdog.feed();
 
         run::spawn_after(Duration::millis(10)).unwrap();
+    }
+
+    #[task(priority = 2)]
+    fn heartbeat(_cx: heartbeat::Context) {
+        defmt::debug!("heartbeat!");
+
+        // repeat every second
+        heartbeat::spawn_after(Duration::millis(1000)).unwrap();
     }
 
     #[idle]
