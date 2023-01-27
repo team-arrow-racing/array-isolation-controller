@@ -45,12 +45,10 @@ impl Isolator {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");
                 self.state = IsolatorState::Precharging {
-                    state: PrechargeState::Negative {
-                        start: time,
-                    },
+                    state: PrechargeState::Negative { start: time },
                 };
                 self.update_outputs();
-            },
+            }
             _ => panic!("invalid state transition: precharge is already in progress."),
         }
     }

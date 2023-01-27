@@ -9,10 +9,7 @@ use stm32_hal2::{
     gpio::{Pin, PinMode, Port},
 };
 
-use stm32l4xx_hal::{
-    prelude::*,
-    watchdog::IndependentWatchdog,
-};
+use stm32l4xx_hal::{prelude::*, watchdog::IndependentWatchdog};
 
 use systick_monotonic::{
     fugit::{MillisDurationU32, MillisDurationU64},
@@ -51,10 +48,7 @@ mod app {
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
 
         // configure system clock
-        let clocks = rcc
-            .cfgr
-            .sysclk(80.MHz())
-            .freeze(&mut flash.acr, &mut pwr);
+        let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
 
         // configure monotonic time
         let mono = Systick::new(cx.core.SYST, clocks.sysclk().to_Hz());
