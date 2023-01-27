@@ -114,7 +114,6 @@ mod app {
     #[task(priority = 2)]
     fn heartbeat(_cx: heartbeat::Context) {
         defmt::debug!("heartbeat!");
-
         // repeat every second
         heartbeat::spawn_after(Duration::millis(1000)).unwrap();
     }
@@ -123,10 +122,8 @@ mod app {
     fn idle(_: idle::Context) -> ! {
         // if the idle task is entered (there is no scheduled tasks) we will
         // idle until the watchdog timer resets the device.
-
         loop {
-            // prevent loop from being optomised away.
-            cortex_m::asm::nop();
+            cortex_m::asm::nop(); // prevent loop from being optomised away.
         }
     }
 
