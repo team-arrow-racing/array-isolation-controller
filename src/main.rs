@@ -82,7 +82,7 @@ mod app {
 
             bxcan::Can::builder(can)
         }
-        .set_bit_timing(0x001c_0031)
+        .set_bit_timing(0x001c_0009) // 500kbit/s
         .set_loopback(true);
 
         let mut can = can.enable();
