@@ -24,8 +24,7 @@ use systick_monotonic::{
 
 use bxcan::{
     filter::Mask32,
-    {Frame, StandardId},
-    Interrupts,
+    Interrupts, {Frame, StandardId},
 };
 
 type Duration = MillisDurationU64;
@@ -70,12 +69,14 @@ mod app {
 
         // configure can bus
         let can = {
-            let rx = gpioa
-                .pa11
-                .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
-            let tx = gpioa
-                .pa12
-                .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+            let rx =
+                gpioa
+                    .pa11
+                    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+            let tx =
+                gpioa
+                    .pa12
+                    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
 
             let can = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
 
@@ -86,8 +87,7 @@ mod app {
 
         let mut can = can.enable();
 
-        can.modify_filters()
-            .enable_bank(0, Mask32::accept_all());
+        can.modify_filters().enable_bank(0, Mask32::accept_all());
 
         can.enable_interrupts(
             Interrupts::TRANSMIT_MAILBOX_EMPTY | Interrupts::FIFO0_MESSAGE_PENDING,
