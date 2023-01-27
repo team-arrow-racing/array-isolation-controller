@@ -6,7 +6,6 @@ use panic_probe as _;
 
 use stm32_hal2::{
     self,
-    clocks::Clocks,
     gpio::{Pin, PinMode, Port},
 };
 
@@ -46,12 +45,19 @@ mod app {
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        // configure system clocks
-        let clock_cfg = Clocks::default();
-        clock_cfg.setup().unwrap();
+        // peripherals
+        let mut flash = cx.device.FLASH.constrain();
+        let mut rcc = cx.device.RCC.constrain();
+        let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
+
+        // configure system clock
+        let clocks = rcc
+            .cfgr
+            .sysclk(80.MHz())
+            .freeze(&mut flash.acr, &mut pwr);
 
         // configure monotonic time
-        let mono = Systick::new(cx.core.SYST, clock_cfg.systick());
+        let mono = Systick::new(cx.core.SYST, clocks.sysclk().to_Hz());
 
         // configure contactors
         let isolator = Isolator::new(isolator::Contactors {
