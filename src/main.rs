@@ -10,10 +10,10 @@ use stm32_hal2::{
     gpio::{Pin, PinMode, Port},
 };
 
-use stm32l4xx_hal::prelude::{
-    _embedded_hal_watchdog_Watchdog, _embedded_hal_watchdog_WatchdogEnable,
+use stm32l4xx_hal::{
+    prelude::*,
+    watchdog::IndependentWatchdog,
 };
-use stm32l4xx_hal::watchdog::IndependentWatchdog;
 
 use systick_monotonic::{
     fugit::{MillisDurationU32, MillisDurationU64},
