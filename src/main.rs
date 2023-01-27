@@ -9,11 +9,23 @@ use stm32_hal2::{
     gpio::{Pin, PinMode, Port},
 };
 
-use stm32l4xx_hal::{prelude::*, watchdog::IndependentWatchdog};
+use stm32l4xx_hal::{
+    can::Can,
+    gpio::{Alternate, PushPull, PB8, PB9},
+    pac::CAN1,
+    prelude::*,
+    watchdog::IndependentWatchdog,
+};
 
 use systick_monotonic::{
     fugit::{MillisDurationU32, MillisDurationU64},
     Systick,
+};
+
+use bxcan::{
+    filter::Mask32,
+    {Frame, StandardId},
+    Interrupts,
 };
 
 type Duration = MillisDurationU64;
@@ -21,7 +33,7 @@ type Duration = MillisDurationU64;
 mod isolator;
 use crate::isolator::Isolator;
 
-#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1, SPI2, SPI3])]
+#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1])]
 mod app {
     use super::*;
 
@@ -30,6 +42,7 @@ mod app {
 
     #[shared]
     struct Shared {
+        can: bxcan::Can<Can<CAN1, (PB9<Alternate<PushPull, 9>>, PB8<Alternate<PushPull, 9>>)>>,
         isolator: Isolator,
     }
 
@@ -46,12 +59,40 @@ mod app {
         let mut flash = cx.device.FLASH.constrain();
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
+        let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
+        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
 
         // configure system clock
         let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
 
         // configure monotonic time
         let mono = Systick::new(cx.core.SYST, clocks.sysclk().to_Hz());
+
+        // configure can bus
+        let can = {
+            let rx = gpiob
+                .pb8
+                .into_alternate(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
+            let tx = gpiob
+                .pb9
+                .into_alternate(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
+
+            let can = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
+
+            bxcan::Can::builder(can)
+        }
+        .set_bit_timing(0x001c_0031)
+        .set_loopback(true);
+
+        let mut can = can.enable();
+
+        can.modify_filters()
+            .enable_bank(0, Mask32::accept_all());
+
+        can.enable_interrupts(
+            Interrupts::TRANSMIT_MAILBOX_EMPTY | Interrupts::FIFO0_MESSAGE_PENDING,
+        );
+        nb::block!(can.enable_non_blocking()).unwrap();
 
         // configure contactors
         let isolator = Isolator::new(isolator::Contactors {
@@ -76,7 +117,7 @@ mod app {
         heartbeat::spawn_after(Duration::millis(1)).unwrap();
 
         (
-            Shared { isolator },
+            Shared { can, isolator },
             Local { watchdog },
             init::Monotonics(mono),
         )
@@ -100,7 +141,7 @@ mod app {
         });
     }
 
-    #[task(shared = [isolator], local = [watchdog], priority = 3)]
+    #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
         cx.shared.isolator.lock(|isolator| {
             isolator.run(monotonics::now());
@@ -111,11 +152,42 @@ mod app {
         run::spawn_after(Duration::millis(10)).unwrap();
     }
 
-    #[task(priority = 2)]
-    fn heartbeat(_cx: heartbeat::Context) {
+    #[task(shared = [can])]
+    fn heartbeat(mut cx: heartbeat::Context) {
         defmt::debug!("heartbeat!");
+
+        cx.shared.can.lock(|can| {
+            // Send a frame
+            let mut test: [u8; 8] = [0; 8];
+
+            test[0] = 0;
+            test[1] = 1;
+            test[2] = 2;
+            test[3] = 3;
+            test[4] = 4;
+            test[5] = 5;
+            test[6] = 6;
+            test[7] = 7;
+            let test_frame = Frame::new_data(StandardId::new(0x500).unwrap(), test);
+            can.transmit(&test_frame).unwrap();
+
+            // Wait for TX to finish
+            while !can.is_transmitter_idle() {}
+
+            defmt::trace!("sent message");
+        });
+
         // repeat every second
         heartbeat::spawn_after(Duration::millis(1000)).unwrap();
+    }
+
+    #[task(shared = [can], binds = CAN1_RX0)]
+    fn can_receive(mut cx: can_receive::Context) {
+        defmt::debug!("received can message");
+
+        cx.shared.can.lock(|can| {
+            can.receive();
+        });
     }
 
     #[idle]
