@@ -11,7 +11,7 @@ use stm32_hal2::{
 
 use stm32l4xx_hal::{
     can::Can,
-    gpio::{Alternate, PushPull, PB8, PB9},
+    gpio::{Alternate, PushPull, PA11, PA12},
     pac::CAN1,
     prelude::*,
     watchdog::IndependentWatchdog,
@@ -42,7 +42,7 @@ mod app {
 
     #[shared]
     struct Shared {
-        can: bxcan::Can<Can<CAN1, (PB9<Alternate<PushPull, 9>>, PB8<Alternate<PushPull, 9>>)>>,
+        can: bxcan::Can<Can<CAN1, (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>)>>,
         isolator: Isolator,
     }
 
@@ -70,12 +70,12 @@ mod app {
 
         // configure can bus
         let can = {
-            let rx = gpiob
-                .pb8
-                .into_alternate(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
-            let tx = gpiob
-                .pb9
-                .into_alternate(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
+            let rx = gpioa
+                .pa11
+                .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+            let tx = gpioa
+                .pa12
+                .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
 
             let can = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
 
