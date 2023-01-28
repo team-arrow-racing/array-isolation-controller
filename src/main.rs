@@ -41,7 +41,12 @@ mod app {
 
     #[shared]
     struct Shared {
-        can: bxcan::Can<Can<CAN1, (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>)>>,
+        can: bxcan::Can<
+            Can<
+                CAN1,
+                (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>),
+            >,
+        >,
         isolator: Isolator,
     }
 
@@ -69,14 +74,16 @@ mod app {
 
         // configure can bus
         let can = {
-            let rx =
-                gpioa
-                    .pa11
-                    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
-            let tx =
-                gpioa
-                    .pa12
-                    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+            let rx = gpioa.pa11.into_alternate(
+                &mut gpioa.moder,
+                &mut gpioa.otyper,
+                &mut gpioa.afrh,
+            );
+            let tx = gpioa.pa12.into_alternate(
+                &mut gpioa.moder,
+                &mut gpioa.otyper,
+                &mut gpioa.afrh,
+            );
 
             let can = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
 
@@ -90,7 +97,8 @@ mod app {
         can.modify_filters().enable_bank(0, Mask32::accept_all());
 
         can.enable_interrupts(
-            Interrupts::TRANSMIT_MAILBOX_EMPTY | Interrupts::FIFO0_MESSAGE_PENDING,
+            Interrupts::TRANSMIT_MAILBOX_EMPTY
+                | Interrupts::FIFO0_MESSAGE_PENDING,
         );
         nb::block!(can.enable_non_blocking()).unwrap();
 
@@ -168,7 +176,8 @@ mod app {
             test[5] = 5;
             test[6] = 6;
             test[7] = 7;
-            let test_frame = Frame::new_data(StandardId::new(0x500).unwrap(), test);
+            let test_frame =
+                Frame::new_data(StandardId::new(0x500).unwrap(), test);
             can.transmit(&test_frame).unwrap();
 
             // Wait for TX to finish

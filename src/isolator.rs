@@ -49,7 +49,9 @@ impl Isolator {
                 };
                 self.update_outputs();
             }
-            _ => panic!("invalid state transition: precharge is already in progress."),
+            _ => panic!(
+                "invalid state transition: precharge is already in progress."
+            ),
         }
     }
 
