@@ -2,6 +2,7 @@
 name = "array-isolation-controller"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
