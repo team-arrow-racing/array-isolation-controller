@@ -1,9 +1,12 @@
+//! Isolation controller state machine.
+
 use stm32_hal2::gpio::Pin;
 use systick_monotonic::fugit::{MillisDurationU64, TimerInstantU64};
 
 type Instant = TimerInstantU64<1000>;
 type Duration = MillisDurationU64;
 
+/// Isolator state.
 #[derive(Clone, Copy, Debug)]
 pub enum IsolatorState {
     Isolated,
@@ -11,24 +14,28 @@ pub enum IsolatorState {
     Engaged,
 }
 
+/// Precharge state.
 #[derive(Clone, Copy, Debug)]
 pub enum PrechargeState {
     Negative { start: Instant },
     Charging { start: Instant },
 }
 
+/// Contactor group.
 pub struct Contactors {
     pub precharge: Pin,
     pub negative: Pin,
     pub positive: Pin,
 }
 
+/// Isolator instance.
 pub struct Isolator {
     state: IsolatorState,
     contactors: Contactors,
 }
 
 impl Isolator {
+    /// Create a new isolator instance.
     pub fn new(contactors: Contactors) -> Self {
         Isolator {
             state: IsolatorState::Isolated,
@@ -36,10 +43,14 @@ impl Isolator {
         }
     }
 
+    /// Retreive the current state.
     pub fn status(&self) -> IsolatorState {
         self.state
     }
 
+    /// Start the precharge process.
+    ///
+    /// This will panic if not in the isolated state.
     pub fn start_precharge(&mut self, time: Instant) {
         match self.state {
             IsolatorState::Isolated => {
@@ -55,12 +66,14 @@ impl Isolator {
         }
     }
 
+    /// Move the isolator into the isolated state instantly.
     pub fn isolate(&mut self) {
         self.state = IsolatorState::Isolated;
         self.update_outputs();
         defmt::trace!("contactors isolated.");
     }
 
+    /// Update the output states given the current state.
     fn update_outputs(&mut self) {
         match self.state {
             IsolatorState::Isolated => {
@@ -88,6 +101,8 @@ impl Isolator {
         }
     }
 
+    /// Run the state machine, making necessary state transitions and then
+    // updating the output states.
     pub fn run(&mut self, time: Instant) {
         match self.state {
             IsolatorState::Isolated => {}
