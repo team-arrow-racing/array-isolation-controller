@@ -2,14 +2,16 @@
 
 Responsible for the safe isolation of the solar array from the rest of the high voltage wiring in the vehicle.
 
-## Building
-
-On MacOS:
+## Setup
 
 ```shell
-rustup target add thumbv7em-none-eabi # Add cross-compilation target
-cargo install probe-run # Install probe-run
+# Add cross-compilation target
+rustup target add thumbv7em-none-eabi
+# Install probe-run
+cargo install probe-run
 ```
+
+On Linux you may need to configure your udev rules to allow running without root.
 
 ## Running
 
