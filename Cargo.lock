@@ -13,6 +13,7 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "defmt-test",
+ "elmar-mppt",
  "nb 1.0.0",
  "panic-probe",
  "stm32-hal2",
@@ -231,6 +232,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "elmar-mppt"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531788023aaa81205cccf77ffb6b7d6dedf94f751cde52f18fe12d5d06fecb84"
+dependencies = [
+ "bitflags",
 ]
 
 [[package]]
