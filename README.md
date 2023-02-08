@@ -6,7 +6,7 @@ Responsible for the safe isolation of the solar array from the rest of the high 
 
 ```shell
 # Add cross-compilation target
-rustup target add thumbv7em-none-eabi
+rustup target add thumbv7em-none-eabihf
 # Install probe-run
 cargo install probe-run
 ```
