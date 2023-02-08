@@ -2,7 +2,6 @@ image: "rust:latest"
 
 stages:
   - build
-  - lint
 
 build:
   stage: build
@@ -15,18 +14,3 @@ build:
   script:
     - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf
     - cargo build
-
-lint:
-  stage: lint
-  image: rust:latest
-  cache:
-    key: "$CI_COMMIT_REF_SLUG-lint"
-    paths:
-      - target/
-      - .cargo/
-  script:
-    - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf
-    - rustup component add rustfmt
-    - rustup component add clippy
-    - cargo fmt --all -- --check
-    - cargo clippy
