@@ -16,7 +16,10 @@ stm32-hal2 = { version = "1.5", features = ["l4x1", "l4rt"]}
 systick-monotonic = "1.0.1"
 bxcan = "0.6.0"
 nb = "1.0.0"
-elmar-mppt = "0.1.0"
+
+[dependencies.elmar-mppt]
+version = "0.1.0"
+# path = "../elmar-mppt" # for local development
 
 [dev-dependencies]
 defmt-test = "0.3"
