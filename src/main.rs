@@ -209,9 +209,6 @@ mod app {
             cortex_m::asm::nop();
         }
     }
-
-    // show millisecond timestamp in debug log
-    defmt::timestamp!("{=u64}ms", { monotonics::now().ticks() });
 }
 
 // same panicking *behavior* as `panic-probe` but doesn't print a panic message
@@ -220,3 +217,6 @@ mod app {
 fn panic() -> ! {
     cortex_m::asm::udf()
 }
+
+// show millisecond timestamp in debug log
+defmt::timestamp!("time={=u64}ms", { app::monotonics::MonoTimer::now().ticks() });
