@@ -57,7 +57,7 @@ mod app {
 
     #[init]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
-        defmt::info!("init");
+        defmt::trace!("task: init");
 
         // peripherals
         let mut flash = cx.device.FLASH.constrain();
@@ -133,7 +133,7 @@ mod app {
 
     #[task(shared = [isolator])]
     fn start(mut cx: start::Context) {
-        defmt::info!("starting precharge.");
+        defmt::trace!("task: start");
 
         cx.shared.isolator.lock(|isolator| {
             isolator.start_precharge(monotonics::now());
@@ -142,7 +142,7 @@ mod app {
 
     #[task(shared = [isolator])]
     fn end(mut cx: end::Context) {
-        defmt::info!("isolating.");
+        defmt::trace!("task: end");
 
         cx.shared.isolator.lock(|isolator| {
             isolator.isolate();
@@ -151,6 +151,8 @@ mod app {
 
     #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
+        defmt::trace!("task: run");
+
         cx.shared.isolator.lock(|isolator| {
             isolator.run(monotonics::now());
         });
@@ -162,7 +164,7 @@ mod app {
 
     #[task(shared = [can])]
     fn heartbeat(mut cx: heartbeat::Context) {
-        defmt::debug!("heartbeat!");
+        defmt::trace!("task: heartbeat");
 
         cx.shared.can.lock(|can| {
             // Send a frame
@@ -192,7 +194,7 @@ mod app {
 
     #[task(shared = [can], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
-        defmt::debug!("received can message");
+        defmt::trace!("task: can receive");
 
         cx.shared.can.lock(|can| {
             can.receive();
@@ -201,10 +203,10 @@ mod app {
 
     #[idle]
     fn idle(_: idle::Context) -> ! {
-        // if the idle task is entered (there is no scheduled tasks) we will
-        // idle until the watchdog timer resets the device.
+        defmt::trace!("task: idle");
+
         loop {
-            cortex_m::asm::nop(); // prevent loop from being optomised away.
+            cortex_m::asm::nop();
         }
     }
 
