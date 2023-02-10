@@ -187,7 +187,7 @@ mod app {
         defmt::trace!("task: can receive");
 
         cx.shared.can.lock(|can| {
-            can.receive();
+            can.receive().unwrap();
         });
     }
 
