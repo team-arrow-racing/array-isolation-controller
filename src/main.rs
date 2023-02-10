@@ -64,7 +64,6 @@ mod app {
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
-        let _gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
 
         // configure system clock
         let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
@@ -85,22 +84,24 @@ mod app {
                 &mut gpioa.afrh,
             );
 
-            let can = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
+            let peripheral = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
 
-            bxcan::Can::builder(can)
-        }
-        .set_bit_timing(0x001c_0009) // 500kbit/s
-        .set_loopback(true);
+            let mut can = bxcan::Can::builder(peripheral)
+                .set_bit_timing(0x001c_0009) // 500kbit/s
+                .set_loopback(true)
+                .enable();
 
-        let mut can = can.enable();
+            can.modify_filters().enable_bank(0, Mask32::accept_all());
 
-        can.modify_filters().enable_bank(0, Mask32::accept_all());
+            can.enable_interrupts(
+                Interrupts::TRANSMIT_MAILBOX_EMPTY
+                    | Interrupts::FIFO0_MESSAGE_PENDING,
+            );
+            
+            nb::block!(can.enable_non_blocking()).unwrap();
 
-        can.enable_interrupts(
-            Interrupts::TRANSMIT_MAILBOX_EMPTY
-                | Interrupts::FIFO0_MESSAGE_PENDING,
-        );
-        nb::block!(can.enable_non_blocking()).unwrap();
+            can
+        };
 
         // configure contactors
         let isolator = Isolator::new(isolator::Contactors {
@@ -110,10 +111,14 @@ mod app {
         });
 
         // configure watchdog
-        let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);
-        watchdog.stop_on_debug(&cx.device.DBGMCU, true);
-        watchdog.start(MillisDurationU32::millis(100));
+        let watchdog = {
+            let mut wd = IndependentWatchdog::new(cx.device.IWDG);
+            wd.stop_on_debug(&cx.device.DBGMCU, true);
+            wd.start(MillisDurationU32::millis(100));
 
+            wd
+        };
+        
         // schedule some state transitions whilst we don't have CAN bus working
         start::spawn_after(Duration::millis(1000)).unwrap();
         end::spawn_after(Duration::millis(5000)).unwrap();
