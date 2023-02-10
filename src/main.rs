@@ -32,6 +32,9 @@ type Duration = MillisDurationU64;
 mod isolator;
 use crate::isolator::Isolator;
 
+use solar_car::{com, device};
+static DEVICE: device::Device = device::Device::ArrayIsolationController;
+
 #[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1])]
 mod app {
     use super::*;
@@ -172,25 +175,7 @@ mod app {
         defmt::trace!("task: heartbeat");
 
         cx.shared.can.lock(|can| {
-            // Send a frame
-            let mut test: [u8; 8] = [0; 8];
-
-            test[0] = 0;
-            test[1] = 1;
-            test[2] = 2;
-            test[3] = 3;
-            test[4] = 4;
-            test[5] = 5;
-            test[6] = 6;
-            test[7] = 7;
-            let test_frame =
-                Frame::new_data(StandardId::new(0x500).unwrap(), test);
-            can.transmit(&test_frame).unwrap();
-
-            // Wait for TX to finish
-            while !can.is_transmitter_idle() {}
-
-            defmt::trace!("sent message");
+            can.transmit(&com::heartbeat::message(DEVICE)).unwrap();
         });
 
         // repeat every second
