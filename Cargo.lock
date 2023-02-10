@@ -16,6 +16,7 @@ dependencies = [
  "elmar-mppt",
  "nb 1.0.0",
  "panic-probe",
+ "solar-car",
  "stm32-hal2",
  "stm32l4xx-hal",
  "systick-monotonic",
@@ -70,6 +71,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b13b4b2ea9ab2ba924063ebb86ad895cb79f4a79bf90f27949eb20c335b30f9"
 dependencies = [
  "bitflags",
+ "defmt",
  "nb 1.0.0",
  "vcell",
 ]
@@ -473,6 +475,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sae-j1939"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad4b9b2d124ec1f7cabe7330f3967ebc1c8d89fc5ebbdc5e94f57c8b58c2a161"
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -498,6 +506,19 @@ name = "semver-parser"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+
+[[package]]
+name = "solar-car"
+version = "0.1.1"
+source = "git+https://gitlab.com/team-arrow-racing/arrow-3/solar-car#97651ca4d3a0159b503580a3a4b20128d4b7d65e"
+dependencies = [
+ "bitflags",
+ "bxcan",
+ "defmt",
+ "heapless",
+ "sae-j1939",
+ "stm32l4xx-hal",
+]
 
 [[package]]
 name = "spin"
