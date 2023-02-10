@@ -87,7 +87,8 @@ mod app {
                 &mut gpioa.afrh,
             );
 
-            let peripheral = Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
+            let peripheral =
+                Can::new(&mut rcc.apb1r1, cx.device.CAN1, (tx, rx));
 
             let mut can = bxcan::Can::builder(peripheral)
                 .set_bit_timing(0x001c_0009) // 500kbit/s
@@ -100,7 +101,7 @@ mod app {
                 Interrupts::TRANSMIT_MAILBOX_EMPTY
                     | Interrupts::FIFO0_MESSAGE_PENDING,
             );
-            
+
             nb::block!(can.enable_non_blocking()).unwrap();
 
             can
@@ -121,7 +122,7 @@ mod app {
 
             wd
         };
-        
+
         // schedule some state transitions whilst we don't have CAN bus working
         start::spawn_after(Duration::millis(1000)).unwrap();
         end::spawn_after(Duration::millis(5000)).unwrap();
@@ -209,4 +210,6 @@ fn panic() -> ! {
 }
 
 // show millisecond timestamp in debug log
-defmt::timestamp!("time={=u64}ms", { app::monotonics::MonoTimer::now().ticks() });
+defmt::timestamp!("time={=u64}ms", {
+    app::monotonics::MonoTimer::now().ticks()
+});
