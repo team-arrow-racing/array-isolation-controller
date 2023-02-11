@@ -4,11 +4,6 @@
 use defmt_rtt as _;
 use panic_probe as _;
 
-use stm32_hal2::{
-    self,
-    gpio::{Pin, PinMode, Port},
-};
-
 use stm32l4xx_hal::{
     can::Can,
     gpio::{Alternate, PushPull, PA11, PA12},
@@ -63,6 +58,7 @@ mod app {
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
+        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
 
         // configure system clock
         let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
@@ -110,9 +106,18 @@ mod app {
 
         // configure contactors
         let isolator = Isolator::new(isolator::Contactors {
-            precharge: Pin::new(Port::A, 5, PinMode::Output),
-            negative: Pin::new(Port::B, 1, PinMode::Output),
-            positive: Pin::new(Port::B, 0, PinMode::Output),
+            precharge: gpioa
+                .pa5
+                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
+                .erase(),
+            negative: gpiob
+                .pb1
+                .into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper)
+                .erase(),
+            positive: gpiob
+                .pb0
+                .into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper)
+                .erase(),
         });
 
         // configure watchdog

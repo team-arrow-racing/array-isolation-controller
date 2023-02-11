@@ -1,6 +1,6 @@
 //! Isolation controller state machine.
 
-use stm32_hal2::gpio::Pin;
+use stm32l4xx_hal::gpio::{ErasedPin, Output, PushPull};
 
 use crate::app::monotonics::MonoTimer as monotonic;
 
@@ -24,9 +24,9 @@ pub enum PrechargeState {
 
 /// Contactor group.
 pub struct Contactors {
-    pub precharge: Pin,
-    pub negative: Pin,
-    pub positive: Pin,
+    pub precharge: ErasedPin<Output<PushPull>>,
+    pub negative: ErasedPin<Output<PushPull>>,
+    pub positive: ErasedPin<Output<PushPull>>,
 }
 
 /// Isolator instance.
