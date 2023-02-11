@@ -6,7 +6,7 @@ use panic_probe as _;
 
 use stm32l4xx_hal::{
     can::Can,
-    gpio::{ErasedPin, Output, Alternate, PushPull, PA11, PA12},
+    gpio::{Alternate, ErasedPin, Output, PushPull, PA11, PA12},
     pac::CAN1,
     prelude::*,
     watchdog::IndependentWatchdog,
@@ -149,7 +149,10 @@ mod app {
 
         (
             Shared { can, isolator },
-            Local { watchdog, status_led },
+            Local {
+                watchdog,
+                status_led,
+            },
             init::Monotonics(mono),
         )
     }
