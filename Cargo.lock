@@ -13,13 +13,13 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "defmt-test",
+ "dwt-systick-monotonic",
  "elmar-mppt",
  "nb 1.0.0",
  "panic-probe",
  "solar-car",
  "stm32-hal2",
  "stm32l4xx-hal",
- "systick-monotonic",
 ]
 
 [[package]]
@@ -234,6 +234,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dwt-systick-monotonic"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89cf807194f1cdf91fc6982bbf42dae58bef937206fd68091d6534ba2888c0cf"
+dependencies = [
+ "cfg-if",
+ "cortex-m",
+ "fugit",
+ "rtic-monotonic",
 ]
 
 [[package]]
@@ -602,17 +614,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "systick-monotonic"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67fb822d5c615a0ae3a4795ee5b1d06381c7faf488d861c0a4fa8e6a88d5ff84"
-dependencies = [
- "cortex-m",
- "fugit",
- "rtic-monotonic",
 ]
 
 [[package]]

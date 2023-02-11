@@ -1,10 +1,11 @@
 //! Isolation controller state machine.
 
 use stm32_hal2::gpio::Pin;
-use systick_monotonic::fugit::{MillisDurationU64, TimerInstantU64};
 
-type Instant = TimerInstantU64<1000>;
-type Duration = MillisDurationU64;
+use crate::app::monotonics::MonoTimer as monotonic;
+
+type Duration = crate::app::Duration;
+type Instant = crate::app::Instant;
 
 /// Isolator state.
 #[derive(Clone, Copy, Debug)]
@@ -17,7 +18,7 @@ pub enum IsolatorState {
 /// Precharge state.
 #[derive(Clone, Copy, Debug)]
 pub enum PrechargeState {
-    Negative { start: Instant },
+    Negative { start: crate::app::Instant },
     Charging { start: Instant },
 }
 
@@ -51,12 +52,14 @@ impl Isolator {
     /// Start the precharge process.
     ///
     /// This will panic if not in the isolated state.
-    pub fn start_precharge(&mut self, time: Instant) {
+    pub fn start_precharge(&mut self) {
         match self.state {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");
                 self.state = IsolatorState::Precharging {
-                    state: PrechargeState::Negative { start: time },
+                    state: PrechargeState::Negative {
+                        start: monotonic::now(),
+                    },
                 };
                 self.update_outputs();
             }
@@ -103,24 +106,26 @@ impl Isolator {
 
     /// Run the state machine, making necessary state transitions and then
     // updating the output states.
-    pub fn run(&mut self, time: Instant) {
+    pub fn run(&mut self) {
+        let now = monotonic::now();
+
         match self.state {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { start } => {
-                    let duration = Duration::from_ticks(1000);
-                    let elapsed = time.checked_duration_since(start).unwrap();
+                    let duration = Duration::millis(1000);
+                    let elapsed = now.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
                         self.state = IsolatorState::Precharging {
-                            state: PrechargeState::Charging { start: time },
+                            state: PrechargeState::Charging { start: now },
                         };
                         defmt::trace!("contactors charging load.");
                     }
                 }
                 PrechargeState::Charging { start } => {
-                    let duration = Duration::from_ticks(1000);
-                    let elapsed = time.checked_duration_since(start).unwrap();
+                    let duration = Duration::millis(1000);
+                    let elapsed = now.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
                         self.state = IsolatorState::Engaged;

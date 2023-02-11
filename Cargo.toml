@@ -13,9 +13,9 @@ defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 stm32l4xx-hal = { version = "0.7.1", features = [ "stm32l451", "rt"] }
 stm32-hal2 = { version = "1.5", features = ["l4x1", "l4rt"]}
-systick-monotonic = "1.0.1"
 bxcan = "0.6.0"
 nb = "1.0.0"
+dwt-systick-monotonic = { version = "1.1.0", features = ["extend"] }
 
 [dependencies.solar-car]
 version = "0.1.1"
