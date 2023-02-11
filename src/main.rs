@@ -6,7 +6,7 @@ use panic_probe as _;
 
 use stm32l4xx_hal::{
     can::Can,
-    gpio::{Alternate, PushPull, PA11, PA12},
+    gpio::{ErasedPin, Output, Alternate, PushPull, PA11, PA12},
     pac::CAN1,
     prelude::*,
     watchdog::IndependentWatchdog,
@@ -47,6 +47,7 @@ mod app {
     #[local]
     struct Local {
         watchdog: IndependentWatchdog,
+        status_led: ErasedPin<Output<PushPull>>,
     }
 
     #[init]
@@ -59,6 +60,7 @@ mod app {
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
         let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
+        let mut gpioc = cx.device.GPIOC.split(&mut rcc.ahb2);
 
         // configure system clock
         let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
@@ -70,6 +72,12 @@ mod app {
             cx.core.SYST,
             clocks.sysclk().to_Hz(),
         );
+
+        // configure status led
+        let status_led = gpioc
+            .pc13
+            .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper)
+            .erase();
 
         // configure can bus
         let can = {
@@ -137,11 +145,11 @@ mod app {
         run::spawn_after(Duration::millis(1)).unwrap();
 
         // start heartbeat
-        heartbeat::spawn_after(Duration::millis(1)).unwrap();
+        heartbeat::spawn_after(Duration::millis(500)).unwrap();
 
         (
             Shared { can, isolator },
-            Local { watchdog },
+            Local { watchdog, status_led },
             init::Monotonics(mono),
         )
     }
@@ -177,16 +185,20 @@ mod app {
         run::spawn_after(Duration::millis(10)).unwrap();
     }
 
-    #[task(shared = [can])]
+    #[task(local = [status_led], shared = [can])]
     fn heartbeat(mut cx: heartbeat::Context) {
         defmt::trace!("task: heartbeat");
 
-        cx.shared.can.lock(|can| {
-            can.transmit(&com::heartbeat::message(DEVICE)).unwrap();
-        });
+        cx.local.status_led.toggle();
+
+        if cx.local.status_led.is_set_low() {
+            cx.shared.can.lock(|can| {
+                can.transmit(&com::heartbeat::message(DEVICE)).unwrap();
+            });
+        }
 
         // repeat every second
-        heartbeat::spawn_after(Duration::millis(1000)).unwrap();
+        heartbeat::spawn_after(Duration::millis(500)).unwrap();
     }
 
     #[task(shared = [can], binds = CAN1_RX0)]
