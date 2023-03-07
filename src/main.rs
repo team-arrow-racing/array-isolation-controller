@@ -14,10 +14,12 @@ use stm32l4xx_hal::{
 
 use dwt_systick_monotonic::{fugit, DwtSystick};
 
-use bxcan::{filter::Mask32, Interrupts};
+use bxcan::{filter::Mask32, Id, Interrupts};
 
 mod isolator;
 use crate::isolator::Isolator;
+
+use elmar_mppt::{Mppt, ID_BASE, ID_INC};
 
 use solar_car::{com, device};
 
@@ -33,15 +35,15 @@ mod app {
     pub type Duration = fugit::TimerDuration<u64, SYSCLK>;
     pub type Instant = fugit::TimerInstant<u64, SYSCLK>;
 
+    type CanBus =
+        Can<CAN1, (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>)>;
+
     #[shared]
     struct Shared {
-        can: bxcan::Can<
-            Can<
-                CAN1,
-                (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>),
-            >,
-        >,
+        can: bxcan::Can<CanBus>,
         isolator: Isolator,
+        mppt_a: Mppt,
+        mppt_b: Mppt,
     }
 
     #[local]
@@ -128,6 +130,9 @@ mod app {
                 .erase(),
         });
 
+        let mppt_a = Mppt::new(ID_BASE);
+        let mppt_b = Mppt::new(ID_BASE + ID_INC);
+
         // configure watchdog
         let watchdog = {
             let mut wd = IndependentWatchdog::new(cx.device.IWDG);
@@ -148,7 +153,12 @@ mod app {
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
 
         (
-            Shared { can, isolator },
+            Shared {
+                can,
+                isolator,
+                mppt_a,
+                mppt_b,
+            },
             Local {
                 watchdog,
                 status_led,
@@ -204,12 +214,33 @@ mod app {
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
     }
 
-    #[task(shared = [can], binds = CAN1_RX0)]
+    #[task(shared = [can, mppt_a, mppt_b], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
 
-        cx.shared.can.lock(|can| {
-            can.receive().unwrap();
+        cx.shared.can.lock(|can| loop {
+            match can.receive() {
+                Ok(frame) => match frame.id() {
+                    Id::Standard(_) => {
+                        cx.shared.mppt_a.lock(|mppt| {
+                            match mppt.receive(&frame) {
+                                Ok(_) => {}
+                                Err(e) => defmt::error!("{=str}", e),
+                            }
+                        });
+
+                        cx.shared.mppt_b.lock(|mppt| {
+                            match mppt.receive(&frame) {
+                                Ok(_) => {}
+                                Err(e) => defmt::error!("{=str}", e),
+                            }
+                        });
+                    }
+                    _ => {}
+                },
+                Err(nb::Error::WouldBlock) => break, // done
+                Err(nb::Error::Other(_)) => {} // go to next frame
+            }
         });
     }
 
