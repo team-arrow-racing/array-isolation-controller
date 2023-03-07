@@ -97,7 +97,7 @@ mod app {
 
             let mut can = bxcan::Can::builder(peripheral)
                 .set_bit_timing(0x001c_0009) // 500kbit/s
-                .set_loopback(true)
+                .set_loopback(false)
                 .enable();
 
             can.modify_filters().enable_bank(0, Mask32::accept_all());
