@@ -22,7 +22,7 @@
 use defmt_rtt as _;
 use panic_probe as _;
 
-use bxcan::{filter::Mask32, Interrupts};
+use bxcan::{filter::Mask32, Id, Interrupts};
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use stm32l4xx_hal::{
     can::Can,
@@ -34,7 +34,13 @@ use stm32l4xx_hal::{
 
 mod isolator;
 use crate::isolator::Isolator;
-use solar_car::{com, device};
+use solar_car::{
+    device,
+    device::source_address,
+    j1939,
+    com,
+    com::MessageFormat,
+};
 
 const DEVICE: device::Device = device::Device::ArrayIsolationController;
 const SYSCLK: u32 = 80_000_000;
@@ -197,9 +203,52 @@ mod app {
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
     }
 
-    #[task(shared = [can], binds = CAN1_RX0)]
-    fn can_receive(_cx: can_receive::Context) {
+    #[task(shared = [can, isolator], binds = CAN1_RX0)]
+    fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
+
+        cx.shared.can.lock(|can| {
+            // receive messages until there is none left
+            loop {
+                match can.receive() {
+                    Ok(frame) => match frame.id() {
+                        Id::Standard(_) => {} // not for us
+                        Id::Extended(id) => {
+                            // convert to a J1939 id
+                            let id: j1939::ExtendedId = id.into();
+
+                            // is this message for us?
+                            if id.source_address
+                                == source_address(DEVICE).unwrap()
+                            {
+                                match MessageFormat::try_from(id.pdu_format) {
+                                    // Trigger a reset
+                                    Ok(MessageFormat::Reset) => {
+                                        stm32l4xx_hal::pac::SCB::sys_reset()
+                                    }
+
+                                    // Start precharging
+                                    Ok(MessageFormat::Enable) => cx
+                                        .shared
+                                        .isolator
+                                        .lock(|iso| iso.start_precharge()),
+
+                                    // Isolate the array
+                                    Ok(MessageFormat::Disable) => cx
+                                        .shared
+                                        .isolator
+                                        .lock(|iso| iso.isolate()),
+
+                                    _ => {} // ignore
+                                }
+                            }
+                        }
+                    },
+                    Err(nb::Error::WouldBlock) => break, // done
+                    Err(nb::Error::Other(_)) => {}       // go to next frame
+                }
+            }
+        })
     }
 
     #[idle]
