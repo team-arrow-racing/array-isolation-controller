@@ -242,7 +242,7 @@ mod app {
                     _ => {}
                 },
                 Err(nb::Error::WouldBlock) => break, // done
-                Err(nb::Error::Other(_)) => {} // go to next frame
+                Err(nb::Error::Other(_)) => {}       // go to next frame
             }
         });
     }
