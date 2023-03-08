@@ -142,15 +142,14 @@ mod app {
             wd
         };
 
-        // schedule some state transitions whilst we don't have CAN bus working
-        start::spawn_after(Duration::millis(1000)).unwrap();
-        end::spawn_after(Duration::millis(5000)).unwrap();
-
         // start main loop
-        run::spawn_after(Duration::millis(1)).unwrap();
+        run::spawn().unwrap();
+
+        // configure mppts
+        init_mppts::spawn().unwrap();
 
         // start heartbeat
-        heartbeat::spawn_after(Duration::millis(500)).unwrap();
+        heartbeat::spawn_after(Duration::millis(5)).unwrap();
 
         (
             Shared {
@@ -167,21 +166,25 @@ mod app {
         )
     }
 
-    #[task(shared = [isolator])]
-    fn start(mut cx: start::Context) {
-        defmt::trace!("task: start");
+    #[task(shared = [can, mppt_a, mppt_b])]
+    fn init_mppts(mut cx: init_mppts::Context) {
+        defmt::debug!("task: init_mppts");
 
-        cx.shared.isolator.lock(|isolator| {
-            isolator.start_precharge();
-        });
-    }
+        const MAX_VOLTAGE: f32 = 100.0;
+        const MAX_CURRENT: f32 = 7.0;
 
-    #[task(shared = [isolator])]
-    fn end(mut cx: end::Context) {
-        defmt::trace!("task: end");
+        cx.shared.can.lock(|can| {
+            cx.shared.mppt_a.lock(|mppt| {
+                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On))).unwrap();
+                nb::block!(can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))).unwrap();
+                nb::block!(can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))).unwrap();
+            });
 
-        cx.shared.isolator.lock(|isolator| {
-            isolator.isolate();
+            cx.shared.mppt_b.lock(|mppt| {
+                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On))).unwrap();
+                nb::block!(can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))).unwrap();
+                nb::block!(can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))).unwrap();
+            });
         });
     }
 
