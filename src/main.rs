@@ -22,6 +22,8 @@
 use defmt_rtt as _;
 use panic_probe as _;
 
+use bxcan::{filter::Mask32, Interrupts};
+use dwt_systick_monotonic::{fugit, DwtSystick};
 use stm32l4xx_hal::{
     can::Can,
     gpio::{Alternate, ErasedPin, Output, PushPull, PA11, PA12},
@@ -30,13 +32,8 @@ use stm32l4xx_hal::{
     watchdog::IndependentWatchdog,
 };
 
-use dwt_systick_monotonic::{fugit, DwtSystick};
-
-use bxcan::{filter::Mask32, Interrupts};
-
 mod isolator;
 use crate::isolator::Isolator;
-
 use solar_car::{com, device};
 
 const DEVICE: device::Device = device::Device::ArrayIsolationController;
@@ -160,10 +157,7 @@ mod app {
         heartbeat::spawn_after(Duration::millis(5)).unwrap();
 
         (
-            Shared {
-                can,
-                isolator,
-            },
+            Shared { can, isolator },
             Local {
                 watchdog,
                 status_led,
