@@ -14,12 +14,10 @@ use stm32l4xx_hal::{
 
 use dwt_systick_monotonic::{fugit, DwtSystick};
 
-use bxcan::{filter::Mask32, Id, Interrupts};
+use bxcan::{filter::Mask32, Interrupts};
 
 mod isolator;
 use crate::isolator::Isolator;
-
-use elmar_mppt::{Mppt, ID_BASE, ID_INC};
 
 use solar_car::{com, device};
 
@@ -42,8 +40,6 @@ mod app {
     struct Shared {
         can: bxcan::Can<CanBus>,
         isolator: Isolator,
-        mppt_a: Mppt,
-        mppt_b: Mppt,
     }
 
     #[local]
@@ -130,9 +126,6 @@ mod app {
                 .erase(),
         });
 
-        let mppt_a = Mppt::new(ID_BASE);
-        let mppt_b = Mppt::new(ID_BASE + ID_INC);
-
         // configure watchdog
         let watchdog = {
             let mut wd = IndependentWatchdog::new(cx.device.IWDG);
@@ -145,9 +138,6 @@ mod app {
         // start main loop
         run::spawn().unwrap();
 
-        // configure mppts
-        init_mppts::spawn().unwrap();
-
         // start heartbeat
         heartbeat::spawn_after(Duration::millis(5)).unwrap();
 
@@ -155,8 +145,6 @@ mod app {
             Shared {
                 can,
                 isolator,
-                mppt_a,
-                mppt_b,
             },
             Local {
                 watchdog,
@@ -164,42 +152,6 @@ mod app {
             },
             init::Monotonics(mono),
         )
-    }
-
-    #[task(shared = [can, mppt_a, mppt_b])]
-    fn init_mppts(mut cx: init_mppts::Context) {
-        defmt::debug!("task: init_mppts");
-
-        const MAX_VOLTAGE: f32 = 60.0;
-        const MAX_CURRENT: f32 = 7.0;
-
-        cx.shared.can.lock(|can| {
-            cx.shared.mppt_a.lock(|mppt| {
-                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On)))
-                    .unwrap();
-                nb::block!(
-                    can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))
-                )
-                .unwrap();
-                nb::block!(
-                    can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))
-                )
-                .unwrap();
-            });
-
-            cx.shared.mppt_b.lock(|mppt| {
-                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On)))
-                    .unwrap();
-                nb::block!(
-                    can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))
-                )
-                .unwrap();
-                nb::block!(
-                    can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))
-                )
-                .unwrap();
-            });
-        });
     }
 
     #[task(shared = [isolator], local = [watchdog])]
@@ -231,34 +183,9 @@ mod app {
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
     }
 
-    #[task(shared = [can, mppt_a, mppt_b], binds = CAN1_RX0)]
-    fn can_receive(mut cx: can_receive::Context) {
+    #[task(shared = [can], binds = CAN1_RX0)]
+    fn can_receive(_cx: can_receive::Context) {
         defmt::trace!("task: can receive");
-
-        cx.shared.can.lock(|can| loop {
-            match can.receive() {
-                Ok(frame) => match frame.id() {
-                    Id::Standard(_) => {
-                        cx.shared.mppt_a.lock(|mppt| {
-                            match mppt.receive(&frame) {
-                                Ok(_) => {}
-                                Err(e) => defmt::error!("{=str}", e),
-                            }
-                        });
-
-                        cx.shared.mppt_b.lock(|mppt| {
-                            match mppt.receive(&frame) {
-                                Ok(_) => {}
-                                Err(e) => defmt::error!("{=str}", e),
-                            }
-                        });
-                    }
-                    _ => {}
-                },
-                Err(nb::Error::WouldBlock) => break, // done
-                Err(nb::Error::Other(_)) => {}       // go to next frame
-            }
-        });
     }
 
     #[idle]

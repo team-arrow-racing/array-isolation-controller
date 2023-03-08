@@ -14,7 +14,6 @@ dependencies = [
  "defmt-rtt",
  "defmt-test",
  "dwt-systick-monotonic",
- "elmar-mppt",
  "nb 1.0.0",
  "panic-probe",
  "solar-car",
@@ -71,6 +70,7 @@ checksum = "4b13b4b2ea9ab2ba924063ebb86ad895cb79f4a79bf90f27949eb20c335b30f9"
 dependencies = [
  "bitflags",
  "defmt",
+ "embedded-can",
  "nb 1.0.0",
  "vcell",
 ]
@@ -238,12 +238,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "elmar-mppt"
-version = "0.1.0"
+name = "embedded-can"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "531788023aaa81205cccf77ffb6b7d6dedf94f751cde52f18fe12d5d06fecb84"
+checksum = "12719661dce6080d174aa0a9df1f61756022dc105c1761bcd37091a0ee5de635"
 dependencies = [
- "bitflags",
+ "nb 1.0.0",
 ]
 
 [[package]]
