@@ -175,15 +175,29 @@ mod app {
 
         cx.shared.can.lock(|can| {
             cx.shared.mppt_a.lock(|mppt| {
-                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On))).unwrap();
-                nb::block!(can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))).unwrap();
-                nb::block!(can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))).unwrap();
+                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On)))
+                    .unwrap();
+                nb::block!(
+                    can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))
+                )
+                .unwrap();
+                nb::block!(
+                    can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))
+                )
+                .unwrap();
             });
 
             cx.shared.mppt_b.lock(|mppt| {
-                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On))).unwrap();
-                nb::block!(can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))).unwrap();
-                nb::block!(can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))).unwrap();
+                nb::block!(can.transmit(&mppt.set_mode(elmar_mppt::Mode::On)))
+                    .unwrap();
+                nb::block!(
+                    can.transmit(&mppt.set_maximum_output_voltage(MAX_VOLTAGE))
+                )
+                .unwrap();
+                nb::block!(
+                    can.transmit(&mppt.set_maximum_input_current(MAX_CURRENT))
+                )
+                .unwrap();
             });
         });
     }
