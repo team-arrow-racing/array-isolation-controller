@@ -170,7 +170,7 @@ mod app {
     fn init_mppts(mut cx: init_mppts::Context) {
         defmt::debug!("task: init_mppts");
 
-        const MAX_VOLTAGE: f32 = 100.0;
+        const MAX_VOLTAGE: f32 = 60.0;
         const MAX_CURRENT: f32 = 7.0;
 
         cx.shared.can.lock(|can| {
