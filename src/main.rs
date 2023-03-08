@@ -48,12 +48,14 @@ mod app {
     pub type Duration = fugit::TimerDuration<u64, SYSCLK>;
     pub type Instant = fugit::TimerInstant<u64, SYSCLK>;
 
-    type CanBus =
-        Can<CAN1, (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>)>;
-
     #[shared]
     struct Shared {
-        can: bxcan::Can<CanBus>,
+        can: bxcan::Can<
+            Can<
+                CAN1,
+                (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>),
+            >,
+        >,
         isolator: Isolator,
     }
 
