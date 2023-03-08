@@ -113,7 +113,8 @@ impl Isolator {
             IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { start } => {
-                    let duration = Duration::millis(1000);
+                    // only enough time for the negative contactor to swing over
+                    let duration = Duration::millis(250);
                     let elapsed = now.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
@@ -124,7 +125,8 @@ impl Isolator {
                     }
                 }
                 PrechargeState::Charging { start } => {
-                    let duration = Duration::millis(1000);
+                    // charging time
+                    let duration = Duration::millis(2500);
                     let elapsed = now.checked_duration_since(start).unwrap();
 
                     if elapsed > duration {
