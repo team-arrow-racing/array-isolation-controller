@@ -79,7 +79,7 @@ mod app {
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
-        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
+        let mut _gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
         let mut gpioc = cx.device.GPIOC.split(&mut rcc.ahb2);
 
         // configure system clock
@@ -138,13 +138,13 @@ mod app {
                 .pa5
                 .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
-            negative: gpiob
-                .pb1
-                .into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper)
+            negative: gpioa
+                .pa2
+                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
-            positive: gpiob
-                .pb0
-                .into_push_pull_output(&mut gpiob.moder, &mut gpiob.otyper)
+            positive: gpioa
+                .pa3
+                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
         });
 
