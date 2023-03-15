@@ -2,6 +2,12 @@
 
 Responsible for the safe isolation of the solar array from the rest of the high voltage wiring in the vehicle.
 
+## Requisites
+
+- Rust
+- ARM Toolchain (for debugging)
+- OpenOCD (for debugging)
+
 ## Setup
 
 ```shell
