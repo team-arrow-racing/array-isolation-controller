@@ -237,15 +237,6 @@ mod app {
             }
         })
     }
-
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        defmt::trace!("task: idle");
-
-        loop {
-            cortex_m::asm::nop();
-        }
-    }
 }
 
 // same panicking *behavior* as `panic-probe` but doesn't print a panic message
