@@ -49,7 +49,7 @@ use crate::thermistor::Thermistor;
 const DEVICE: device::Device = device::Device::ArrayIsolationController;
 const SYSCLK: u32 = 80_000_000;
 
-#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1])]
+#[rtic::app(device = stm32l4xx_hal::pac, dispatchers = [SPI1, SPI2, SPI3, QUADSPI])]
 mod app {
     use super::*;
 
@@ -241,7 +241,7 @@ mod app {
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
     }
 
-    #[task(local = [thermistor], shared = [adc, isolator])]
+    #[task(priority = 3, local = [thermistor], shared = [adc, isolator])]
     fn thermal_watchdog(mut cx: thermal_watchdog::Context) {
         defmt::trace!("task: thermal watchdog");
 
@@ -258,7 +258,7 @@ mod app {
         thermal_watchdog::spawn_after(Duration::millis(100)).unwrap();
     }
 
-    #[task(shared = [can, isolator], binds = CAN1_RX0)]
+    #[task(priority = 2, shared = [can, isolator], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
 
