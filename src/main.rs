@@ -139,11 +139,11 @@ mod app {
                 .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
             negative: gpioa
-                .pa2
+                .pa3
                 .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
             positive: gpioa
-                .pa3
+                .pa2
                 .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
                 .erase(),
         });
