@@ -194,12 +194,12 @@ mod app {
         // configure watchdog
         let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);
         watchdog.stop_on_debug(&cx.device.DBGMCU, true);
-        watchdog.start(fugit::MillisDurationU32::millis(100));
+        watchdog.start(100.millis());
 
         // start tasks
         run::spawn().unwrap();
         thermal_watchdog::spawn().unwrap();
-        heartbeat::spawn_after(Duration::millis(5)).unwrap();
+        heartbeat::spawn_after(5.millis().into()).unwrap();
 
         (
             Shared { adc, can, isolator },
@@ -222,7 +222,7 @@ mod app {
 
         cx.local.watchdog.feed();
 
-        run::spawn_after(Duration::millis(10)).unwrap();
+        run::spawn_after(10.millis().into()).unwrap();
     }
 
     #[task(local = [status_led], shared = [can])]
@@ -238,7 +238,7 @@ mod app {
         }
 
         // repeat every second
-        heartbeat::spawn_after(Duration::millis(500)).unwrap();
+        heartbeat::spawn_after(500.millis().into()).unwrap();
     }
 
     #[task(priority = 3, local = [thermistor], shared = [adc, isolator])]
@@ -255,7 +255,7 @@ mod app {
             }
         });
 
-        thermal_watchdog::spawn_after(Duration::millis(100)).unwrap();
+        thermal_watchdog::spawn_after(100.millis().into()).unwrap();
     }
 
     #[task(priority = 2, shared = [can, isolator], binds = CAN1_RX0)]
