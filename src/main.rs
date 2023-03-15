@@ -133,20 +133,35 @@ mod app {
         };
 
         // configure contactors
-        let isolator = Isolator::new(isolator::Contactors {
-            precharge: gpioa
-                .pa5
-                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
-                .erase(),
-            negative: gpioa
-                .pa3
-                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
-                .erase(),
-            positive: gpioa
-                .pa2
-                .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
-                .erase(),
-        });
+        let isolator = {
+            let negative = gpioa.pa3.into_alternate_push_pull(
+                &mut gpioa.moder,
+                &mut gpioa.otyper,
+                &mut gpioa.afrl,
+            );
+
+            let postive = gpioa.pa2.into_alternate_push_pull(
+                &mut gpioa.moder,
+                &mut gpioa.otyper,
+                &mut gpioa.afrl,
+            );
+
+            let pwm = cx.device.TIM2.pwm(
+                (postive, negative),
+                40000.Hz(),
+                clocks,
+                &mut rcc.apb1r1,
+            );
+
+            Isolator::new(isolator::Contactors {
+                precharge: gpioa
+                    .pa5
+                    .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper)
+                    .erase(),
+                negative: pwm.1,
+                positive: pwm.0,
+            })
+        };
 
         // configure watchdog
         let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);

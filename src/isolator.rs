@@ -1,6 +1,11 @@
 //! Isolation controller state machine.
 
-use stm32l4xx_hal::gpio::{ErasedPin, Output, PushPull};
+use cortex_m::prelude::_embedded_hal_PwmPin;
+use stm32l4xx_hal::{
+    device::TIM2,
+    gpio::{ErasedPin, Output, PushPull},
+    pwm::{Pwm, C3, C4},
+};
 
 use crate::app::monotonics::MonoTimer as monotonic;
 
@@ -25,8 +30,8 @@ pub enum PrechargeState {
 /// Contactor group.
 pub struct Contactors {
     pub precharge: ErasedPin<Output<PushPull>>,
-    pub negative: ErasedPin<Output<PushPull>>,
-    pub positive: ErasedPin<Output<PushPull>>,
+    pub negative: Pwm<TIM2, C4>,
+    pub positive: Pwm<TIM2, C3>,
 }
 
 /// Isolator instance.
@@ -81,25 +86,43 @@ impl Isolator {
         match self.state {
             IsolatorState::Isolated => {
                 self.contactors.precharge.set_low();
-                self.contactors.negative.set_low();
-                self.contactors.positive.set_low();
+                self.contactors.negative.disable();
+                self.contactors.positive.disable();
             }
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { .. } => {
                     self.contactors.precharge.set_low();
-                    self.contactors.negative.set_high();
-                    self.contactors.positive.set_low();
+
+                    self.contactors.negative.enable();
+                    self.contactors
+                        .negative
+                        .set_duty(self.contactors.negative.get_max_duty());
+
+                    self.contactors.positive.disable();
                 }
                 PrechargeState::Charging { .. } => {
                     self.contactors.precharge.set_high();
-                    self.contactors.negative.set_high();
-                    self.contactors.positive.set_low();
+
+                    self.contactors.negative.enable();
+                    self.contactors
+                        .negative
+                        .set_duty(self.contactors.negative.get_max_duty());
+
+                    self.contactors.positive.disable();
                 }
             },
             IsolatorState::Engaged => {
                 self.contactors.precharge.set_low();
-                self.contactors.negative.set_high();
-                self.contactors.positive.set_high();
+
+                self.contactors.negative.enable();
+                self.contactors
+                    .negative
+                    .set_duty(self.contactors.negative.get_max_duty());
+
+                self.contactors.positive.enable();
+                self.contactors
+                    .positive
+                    .set_duty(self.contactors.positive.get_max_duty());
             }
         }
     }
