@@ -248,11 +248,15 @@ mod app {
         cx.shared.adc.lock(|adc| {
             let temperature = cx.local.thermistor.read(adc);
 
-            if temperature > 50.0 {
-                cx.shared.isolator.lock(|isolator| {
-                    isolator.isolate();
-                })
-            }
+            cx.shared.isolator.lock(|isolator| match temperature {
+                Ok(t) => {
+                    // temperature over 50 degrees
+                    if t > 50.0 {
+                        isolator.isolate();
+                    }
+                }
+                Err(_) => isolator.isolate(),
+            })
         });
 
         thermal_watchdog::spawn_after(100.millis().into()).unwrap();
