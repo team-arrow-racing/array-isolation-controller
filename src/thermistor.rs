@@ -23,7 +23,7 @@ impl Thermistor {
 
     pub fn read(&mut self, adc: &mut ADC) -> f32 {
         adc.set_resolution(Resolution::Bits12);
-        let value = adc.read(&mut self.pin).unwrap() as f32 / 4096_f32;
+        let value = adc.read(&mut self.pin).unwrap() as f32 / adc.get_max_value() as f32;
         
         let slope: f32 = (self.r_85 - self.r_25) / (85 - 25) as f32;
 
