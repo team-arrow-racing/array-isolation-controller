@@ -157,10 +157,8 @@ mod app {
             wd
         };
 
-        // start main loop
+        // start tasks
         run::spawn().unwrap();
-
-        // start heartbeat
         heartbeat::spawn_after(Duration::millis(5)).unwrap();
 
         (
