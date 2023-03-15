@@ -149,13 +149,9 @@ mod app {
         });
 
         // configure watchdog
-        let watchdog = {
-            let mut wd = IndependentWatchdog::new(cx.device.IWDG);
-            wd.stop_on_debug(&cx.device.DBGMCU, true);
-            wd.start(fugit::MillisDurationU32::millis(100));
-
-            wd
-        };
+        let mut watchdog = IndependentWatchdog::new(cx.device.IWDG);
+        watchdog.stop_on_debug(&cx.device.DBGMCU, true);
+        watchdog.start(fugit::MillisDurationU32::millis(100));
 
         // start tasks
         run::spawn().unwrap();
