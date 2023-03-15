@@ -227,8 +227,8 @@ mod app {
                             }
                         }
                     },
+                    Err(nb::Error::Other(_)) => {} // go to next frame
                     Err(nb::Error::WouldBlock) => break, // done
-                    Err(nb::Error::Other(_)) => {}       // go to next frame
                 }
             }
         })
