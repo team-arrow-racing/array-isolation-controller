@@ -199,7 +199,7 @@ mod app {
         // start tasks
         run::spawn().unwrap();
         thermal_watchdog::spawn().unwrap();
-        heartbeat::spawn_after(5.millis().into()).unwrap();
+        heartbeat::spawn().unwrap();
 
         (
             Shared { adc, can, isolator },
