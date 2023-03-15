@@ -24,6 +24,12 @@ use panic_probe as _;
 
 use bxcan::{filter::Mask32, Id, Interrupts};
 use dwt_systick_monotonic::{fugit, DwtSystick};
+use solar_car::{
+    com,
+    com::array::{PGN_ISOLATE, PGN_START_PRECHARGE},
+    device, j1939,
+    j1939::pgn::Pgn,
+};
 use stm32l4xx_hal::{
     can::Can,
     gpio::{Alternate, ErasedPin, Output, PushPull, PA11, PA12},
@@ -34,13 +40,6 @@ use stm32l4xx_hal::{
 
 mod isolator;
 use crate::isolator::Isolator;
-use solar_car::{
-    device,
-    device::source_address,
-    j1939,
-    com,
-    com::MessageFormat,
-};
 
 const DEVICE: device::Device = device::Device::ArrayIsolationController;
 const SYSCLK: u32 = 80_000_000;
@@ -218,29 +217,19 @@ mod app {
                             let id: j1939::ExtendedId = id.into();
 
                             // is this message for us?
-                            if id.source_address
-                                == source_address(DEVICE).unwrap()
-                            {
-                                match MessageFormat::try_from(id.pdu_format) {
-                                    // Trigger a reset
-                                    Ok(MessageFormat::Reset) => {
-                                        stm32l4xx_hal::pac::SCB::sys_reset()
-                                    }
-
-                                    // Start precharging
-                                    Ok(MessageFormat::Enable) => cx
+                            match id.pgn {
+                                Pgn::Destination(pgn) => match pgn {
+                                    PGN_START_PRECHARGE => cx
                                         .shared
                                         .isolator
                                         .lock(|iso| iso.start_precharge()),
-
-                                    // Isolate the array
-                                    Ok(MessageFormat::Disable) => cx
+                                    PGN_ISOLATE => cx
                                         .shared
                                         .isolator
                                         .lock(|iso| iso.isolate()),
-
-                                    _ => {} // ignore
-                                }
+                                    _ => {}
+                                },
+                                _ => {} // ignore broadcast messages
                             }
                         }
                     },
