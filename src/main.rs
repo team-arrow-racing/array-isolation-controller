@@ -23,6 +23,7 @@ use defmt_rtt as _;
 use panic_probe as _;
 
 use bxcan::{filter::Mask32, Id, Interrupts};
+use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use solar_car::{
     com,
@@ -31,6 +32,7 @@ use solar_car::{
     j1939::pgn::Pgn,
 };
 use stm32l4xx_hal::{
+    adc::ADC,
     can::Can,
     gpio::{Alternate, ErasedPin, Output, PushPull, PA11, PA12},
     pac::CAN1,
@@ -40,6 +42,9 @@ use stm32l4xx_hal::{
 
 mod isolator;
 use crate::isolator::Isolator;
+
+mod thermistor;
+use crate::thermistor::Thermistor;
 
 const DEVICE: device::Device = device::Device::ArrayIsolationController;
 const SYSCLK: u32 = 80_000_000;
@@ -55,6 +60,7 @@ mod app {
 
     #[shared]
     struct Shared {
+        adc: ADC,
         can: bxcan::Can<
             Can<
                 CAN1,
@@ -68,6 +74,7 @@ mod app {
     struct Local {
         watchdog: IndependentWatchdog,
         status_led: ErasedPin<Output<PushPull>>,
+        thermistor: Thermistor,
     }
 
     #[init]
@@ -84,6 +91,28 @@ mod app {
 
         // configure system clock
         let clocks = rcc.cfgr.sysclk(80.MHz()).freeze(&mut flash.acr, &mut pwr);
+
+        // configure adc
+        let adc = {
+            let mut delay = Delay::new(
+                unsafe { stm32l4xx_hal::pac::CorePeripherals::steal().SYST },
+                clocks.sysclk().to_Hz(),
+            );
+
+            ADC::new(
+                cx.device.ADC1,
+                cx.device.ADC_COMMON,
+                &mut rcc.ahb2,
+                &mut rcc.ccipr,
+                &mut delay,
+            )
+        };
+
+        // configure thermistor
+        let thermistor = {
+            let pin = gpioa.pa0.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
+            Thermistor::new(pin, 10_000.0, 3435.0)
+        };
 
         // configure monotonic time
         let mono = DwtSystick::new(
@@ -169,13 +198,15 @@ mod app {
 
         // start tasks
         run::spawn().unwrap();
+        thermal_watchdog::spawn().unwrap();
         heartbeat::spawn_after(Duration::millis(5)).unwrap();
 
         (
-            Shared { can, isolator },
+            Shared { adc, can, isolator },
             Local {
                 watchdog,
                 status_led,
+                thermistor,
             },
             init::Monotonics(mono),
         )
@@ -208,6 +239,23 @@ mod app {
 
         // repeat every second
         heartbeat::spawn_after(Duration::millis(500)).unwrap();
+    }
+
+    #[task(local = [thermistor], shared = [adc, isolator])]
+    fn thermal_watchdog(mut cx: thermal_watchdog::Context) {
+        defmt::trace!("task: thermal watchdog");
+
+        cx.shared.adc.lock(|adc| {
+            let temperature = cx.local.thermistor.read(adc);
+
+            if temperature > 50.0 {
+                cx.shared.isolator.lock(|isolator| {
+                    isolator.isolate();
+                })
+            }
+        });
+
+        thermal_watchdog::spawn_after(Duration::millis(100)).unwrap();
     }
 
     #[task(shared = [can, isolator], binds = CAN1_RX0)]
