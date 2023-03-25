@@ -75,6 +75,7 @@ mod app {
         watchdog: IndependentWatchdog,
         status_led: ErasedPin<Output<PushPull>>,
         thermistor: Thermistor,
+        last_vcu_time: Duration
     }
 
     #[init]
@@ -113,6 +114,8 @@ mod app {
             let pin = gpioa.pa0.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
             Thermistor::new(pin, 10_000.0, 3435.0)
         };
+
+        let last_vcu_time = Instant::now();
 
         // configure monotonic time
         let mono = DwtSystick::new(
@@ -214,7 +217,7 @@ mod app {
 
     #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
-        defmt::trace!("task: run");
+        // defmt::trace!("task: run");
 
         cx.shared.isolator.lock(|isolator| {
             isolator.run();
@@ -262,7 +265,7 @@ mod app {
         thermal_watchdog::spawn_after(100.millis().into()).unwrap();
     }
 
-    #[task(priority = 2, shared = [can, isolator], binds = CAN1_RX0)]
+    #[task(priority = 2, shared = [can, isolator], local = [last_vcu_time], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
 
@@ -270,29 +273,37 @@ mod app {
             // receive messages until there is none left
             loop {
                 match can.receive() {
-                    Ok(frame) => match frame.id() {
-                        Id::Standard(_) => {} // not for us
-                        Id::Extended(id) => {
-                            // convert to a J1939 id
-                            let id: j1939::ExtendedId = id.into();
+                    Ok(frame) => {
+                        match frame.id() {
+                            Id::Standard(_) => {} // not for us
+                            Id::Extended(id) => {
+                                // convert to a J1939 id
+                                let id: j1939::ExtendedId = id.into();
 
-                            // is this message for us?
-                            match id.pgn {
-                                Pgn::Destination(pgn) => match pgn {
-                                    PGN_START_PRECHARGE => cx
-                                        .shared
-                                        .isolator
-                                        .lock(|iso| iso.start_precharge()),
-                                    PGN_ISOLATE => cx
-                                        .shared
-                                        .isolator
-                                        .lock(|iso| iso.isolate()),
-                                    _ => {}
-                                },
-                                _ => {} // ignore broadcast messages
+                                // is this message for us?
+                                match id.pgn {
+                                    Pgn::Destination(pgn) => match pgn {
+                                        PGN_START_PRECHARGE => cx
+                                            .shared
+                                            .isolator
+                                            .lock(|iso| iso.start_precharge()),
+                                        PGN_ISOLATE => cx
+                                            .shared
+                                            .isolator
+                                            .lock(|iso| iso.isolate()),
+                                        PGN_VCU_TO_AIC => {
+                                            defmt::debug!("AIC received message from VCU");
+                                            if Instant::now() - last_vcu_time >= Duration::from_msecs(500) {
+                                                defmt::debug("IT'S TOO LATE SPIDER-MAN!!!");
+                                            }
+                                        },
+                                        _ => {}
+                                    },
+                                    _ => {} // ignore broadcast messages
+                                }
                             }
                         }
-                    },
+                    }
                     Err(nb::Error::Other(_)) => {} // go to next frame
                     Err(nb::Error::WouldBlock) => break, // done
                 }
