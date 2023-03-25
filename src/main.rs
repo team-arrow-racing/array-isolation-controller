@@ -27,7 +27,7 @@ use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use solar_car::{
     com,
-    com::array::{PGN_ISOLATE, PGN_START_PRECHARGE},
+    com::array::{PGN_FEED_WATCHDOG, PGN_ISOLATE, PGN_START_PRECHARGE},
     device, j1939,
     j1939::pgn::Pgn,
 };
