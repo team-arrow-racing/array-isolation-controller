@@ -115,7 +115,9 @@ mod app {
             Thermistor::new(pin, 10_000.0, 3435.0)
         };
 
-        let last_vcu_time = monotonics::MonoTimer::now().duration_since_epoch().to_millis();
+        let last_vcu_time = monotonics::now()
+            .duration_since_epoch()
+            .to_millis();
 
         // configure monotonic time
         let mono = DwtSystick::new(
@@ -293,11 +295,10 @@ mod app {
                                             .isolator
                                             .lock(|iso| iso.isolate()),
                                         PGN_FEED_WATCHDOG => {
-                                            defmt::debug!("AIC received message from VCU");
-                                            if monotonics::MonoTimer::now().duration_since_epoch().to_millis() - *cx.local.last_vcu_time >= Duration::millis(500).to_millis() {
+                                            if monotonics::now().duration_since_epoch().to_millis() - *cx.local.last_vcu_time >= Duration::millis(500).to_millis() {
                                                 defmt::debug!("IT'S TOO LATE SPIDER-MAN!!!");
                                             }
-                                            *cx.local.last_vcu_time = monotonics::MonoTimer::now().duration_since_epoch().to_millis();
+                                            *cx.local.last_vcu_time = monotonics::now().duration_since_epoch().to_millis();
                                         },
                                         _ => {}
                                     },
