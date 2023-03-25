@@ -296,6 +296,7 @@ mod app {
                                             if Instant::now() - last_vcu_time >= Duration::from_msecs(500) {
                                                 defmt::debug("IT'S TOO LATE SPIDER-MAN!!!");
                                             }
+                                            last_vcu_time = Instant::now();
                                         },
                                         _ => {}
                                     },
