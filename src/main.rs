@@ -75,7 +75,7 @@ mod app {
         watchdog: IndependentWatchdog,
         status_led: ErasedPin<Output<PushPull>>,
         thermistor: Thermistor,
-        last_vcu_time: Duration
+        last_vcu_time: u64
     }
 
     #[init]
@@ -115,7 +115,7 @@ mod app {
             Thermistor::new(pin, 10_000.0, 3435.0)
         };
 
-        let last_vcu_time = Instant::now();
+        let last_vcu_time = monotonics::MonoTimer::now().duration_since_epoch().to_millis();
 
         // configure monotonic time
         let mono = DwtSystick::new(
@@ -210,6 +210,7 @@ mod app {
                 watchdog,
                 status_led,
                 thermistor,
+                last_vcu_time
             },
             init::Monotonics(mono),
         )
@@ -291,12 +292,12 @@ mod app {
                                             .shared
                                             .isolator
                                             .lock(|iso| iso.isolate()),
-                                        PGN_VCU_TO_AIC => {
+                                        PGN_FEED_WATCHDOG => {
                                             defmt::debug!("AIC received message from VCU");
-                                            if Instant::now() - last_vcu_time >= Duration::from_msecs(500) {
-                                                defmt::debug("IT'S TOO LATE SPIDER-MAN!!!");
+                                            if monotonics::MonoTimer::now().duration_since_epoch().to_millis() - *cx.local.last_vcu_time >= Duration::millis(500).to_millis() {
+                                                defmt::debug!("IT'S TOO LATE SPIDER-MAN!!!");
                                             }
-                                            last_vcu_time = Instant::now();
+                                            *cx.local.last_vcu_time = monotonics::MonoTimer::now().duration_since_epoch().to_millis();
                                         },
                                         _ => {}
                                     },
