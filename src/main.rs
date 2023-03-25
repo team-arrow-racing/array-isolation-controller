@@ -68,6 +68,7 @@ mod app {
             >,
         >,
         isolator: Isolator,
+        isolator_wd_fed: Option<Instant>,
     }
 
     #[local]
@@ -75,7 +76,6 @@ mod app {
         watchdog: IndependentWatchdog,
         status_led: ErasedPin<Output<PushPull>>,
         thermistor: Thermistor,
-        last_vcu_time: u64,
     }
 
     #[init]
@@ -114,10 +114,6 @@ mod app {
             let pin = gpioa.pa0.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
             Thermistor::new(pin, 10_000.0, 3435.0)
         };
-
-        let last_vcu_time = monotonics::now()
-            .duration_since_epoch()
-            .to_millis();
 
         // configure monotonic time
         let mono = DwtSystick::new(
@@ -203,16 +199,20 @@ mod app {
 
         // start tasks
         run::spawn().unwrap();
-        thermal_watchdog::spawn().unwrap();
+        isolator_watchdog::spawn().unwrap();
         heartbeat::spawn().unwrap();
 
         (
-            Shared { adc, can, isolator },
+            Shared {
+                adc,
+                can,
+                isolator,
+                isolator_wd_fed: None,
+            },
             Local {
                 watchdog,
                 status_led,
                 thermistor,
-                last_vcu_time,
             },
             init::Monotonics(mono),
         )
@@ -247,28 +247,44 @@ mod app {
         heartbeat::spawn_after(500.millis().into()).unwrap();
     }
 
-    #[task(priority = 3, local = [thermistor], shared = [adc, isolator])]
-    fn thermal_watchdog(mut cx: thermal_watchdog::Context) {
-        defmt::trace!("task: thermal watchdog");
+    #[task(priority = 3, local = [thermistor], shared = [adc, isolator, isolator_wd_fed])]
+    fn isolator_watchdog(mut cx: isolator_watchdog::Context) {
+        defmt::trace!("task: isolator watchdog");
 
-        cx.shared.adc.lock(|adc| {
-            let temperature = cx.local.thermistor.read(adc);
+        let time = monotonics::now();
 
-            cx.shared.isolator.lock(|isolator| match temperature {
-                Ok(t) => {
-                    // temperature over 50 degrees
-                    if t > 50.0 {
+        cx.shared.isolator.lock(|isolator| {
+            // check temporal watchdog
+            cx.shared.isolator_wd_fed.lock(|last_fed| {
+                if let Some(fed) = last_fed {
+                    if time.checked_duration_since(*fed).unwrap() > Duration::millis(500) {
                         isolator.isolate();
                     }
+                } else {
+                    isolator.isolate();
                 }
-                Err(_) => isolator.isolate(),
-            })
+            });
+
+            // check thermal watchdog
+            cx.shared.adc.lock(|adc| {
+                let temperature = cx.local.thermistor.read(adc);
+    
+                match temperature {
+                    Ok(t) => {
+                        // temperature over 50 degrees
+                        if t > 50.0 {
+                            isolator.isolate();
+                        }
+                    }
+                    Err(_) => isolator.isolate(),
+                }
+            });
         });
 
-        thermal_watchdog::spawn_after(100.millis().into()).unwrap();
+        isolator_watchdog::spawn_after(100.millis().into()).unwrap();
     }
 
-    #[task(priority = 2, shared = [can, isolator], local = [last_vcu_time], binds = CAN1_RX0)]
+    #[task(priority = 2, shared = [can, isolator, isolator_wd_fed], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
 
@@ -286,20 +302,31 @@ mod app {
                                 // is this message for us?
                                 match id.pgn {
                                     Pgn::Destination(pgn) => match pgn {
-                                        PGN_START_PRECHARGE => cx
+                                        PGN_START_PRECHARGE => {
+                                            cx.shared.isolator_wd_fed.lock(
+                                                |time| {
+                                                    *time =
+                                                        Some(monotonics::now());
+                                                },
+                                            );
+
+                                            cx
                                             .shared
                                             .isolator
-                                            .lock(|iso| iso.start_precharge()),
+                                            .lock(|iso| iso.start_precharge())
+                                        },
                                         PGN_ISOLATE => cx
                                             .shared
                                             .isolator
                                             .lock(|iso| iso.isolate()),
                                         PGN_FEED_WATCHDOG => {
-                                            if monotonics::now().duration_since_epoch().to_millis() - *cx.local.last_vcu_time >= Duration::millis(500).to_millis() {
-                                                defmt::debug!("IT'S TOO LATE SPIDER-MAN!!!");
-                                            }
-                                            *cx.local.last_vcu_time = monotonics::now().duration_since_epoch().to_millis();
-                                        },
+                                            cx.shared.isolator_wd_fed.lock(
+                                                |time| {
+                                                    *time =
+                                                        Some(monotonics::now());
+                                                },
+                                            );
+                                        }
                                         _ => {}
                                     },
                                     _ => {} // ignore broadcast messages
