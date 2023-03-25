@@ -75,7 +75,7 @@ mod app {
         watchdog: IndependentWatchdog,
         status_led: ErasedPin<Output<PushPull>>,
         thermistor: Thermistor,
-        last_vcu_time: u64
+        last_vcu_time: u64,
     }
 
     #[init]
@@ -212,7 +212,7 @@ mod app {
                 watchdog,
                 status_led,
                 thermistor,
-                last_vcu_time
+                last_vcu_time,
             },
             init::Monotonics(mono),
         )
