@@ -23,7 +23,7 @@ pub enum IsolatorState {
 /// Precharge state.
 #[derive(Clone, Copy, Debug)]
 pub enum PrechargeState {
-    Negative { start: crate::app::Instant },
+    Negative { start: Instant },
     Charging { start: Instant },
 }
 

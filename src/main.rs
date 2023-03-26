@@ -27,7 +27,7 @@ use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use solar_car::{
     com,
-    com::array::{PGN_ISOLATE, PGN_START_PRECHARGE},
+    com::array::{PGN_FEED_WATCHDOG, PGN_ISOLATE, PGN_START_PRECHARGE},
     device, j1939,
     j1939::pgn::Pgn,
 };
@@ -68,6 +68,7 @@ mod app {
             >,
         >,
         isolator: Isolator,
+        isolator_wd_fed: Option<Instant>,
     }
 
     #[local]
@@ -198,11 +199,16 @@ mod app {
 
         // start tasks
         run::spawn().unwrap();
-        thermal_watchdog::spawn().unwrap();
+        isolator_watchdog::spawn().unwrap();
         heartbeat::spawn().unwrap();
 
         (
-            Shared { adc, can, isolator },
+            Shared {
+                adc,
+                can,
+                isolator,
+                isolator_wd_fed: None,
+            },
             Local {
                 watchdog,
                 status_led,
@@ -214,7 +220,7 @@ mod app {
 
     #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
-        defmt::trace!("task: run");
+        // defmt::trace!("task: run");
 
         cx.shared.isolator.lock(|isolator| {
             isolator.run();
@@ -241,28 +247,44 @@ mod app {
         heartbeat::spawn_after(500.millis().into()).unwrap();
     }
 
-    #[task(priority = 3, local = [thermistor], shared = [adc, isolator])]
-    fn thermal_watchdog(mut cx: thermal_watchdog::Context) {
-        defmt::trace!("task: thermal watchdog");
+    #[task(priority = 3, local = [thermistor], shared = [adc, isolator, isolator_wd_fed])]
+    fn isolator_watchdog(mut cx: isolator_watchdog::Context) {
+        defmt::trace!("task: isolator watchdog");
 
-        cx.shared.adc.lock(|adc| {
-            let temperature = cx.local.thermistor.read(adc);
+        let time = monotonics::now();
 
-            cx.shared.isolator.lock(|isolator| match temperature {
-                Ok(t) => {
-                    // temperature over 50 degrees
-                    if t > 50.0 {
+        cx.shared.isolator.lock(|isolator| {
+            // check temporal watchdog
+            cx.shared.isolator_wd_fed.lock(|last_fed| {
+                if let Some(fed) = last_fed {
+                    if time.checked_duration_since(*fed).unwrap() > Duration::millis(500) {
                         isolator.isolate();
                     }
+                } else {
+                    isolator.isolate();
                 }
-                Err(_) => isolator.isolate(),
-            })
+            });
+
+            // check thermal watchdog
+            cx.shared.adc.lock(|adc| {
+                let temperature = cx.local.thermistor.read(adc);
+    
+                match temperature {
+                    Ok(t) => {
+                        // temperature over 50 degrees
+                        if t > 50.0 {
+                            isolator.isolate();
+                        }
+                    }
+                    Err(_) => isolator.isolate(),
+                }
+            });
         });
 
-        thermal_watchdog::spawn_after(100.millis().into()).unwrap();
+        isolator_watchdog::spawn_after(100.millis().into()).unwrap();
     }
 
-    #[task(priority = 2, shared = [can, isolator], binds = CAN1_RX0)]
+    #[task(priority = 2, shared = [can, isolator, isolator_wd_fed], binds = CAN1_RX0)]
     fn can_receive(mut cx: can_receive::Context) {
         defmt::trace!("task: can receive");
 
@@ -270,29 +292,48 @@ mod app {
             // receive messages until there is none left
             loop {
                 match can.receive() {
-                    Ok(frame) => match frame.id() {
-                        Id::Standard(_) => {} // not for us
-                        Id::Extended(id) => {
-                            // convert to a J1939 id
-                            let id: j1939::ExtendedId = id.into();
+                    Ok(frame) => {
+                        match frame.id() {
+                            Id::Standard(_) => {} // not for us
+                            Id::Extended(id) => {
+                                // convert to a J1939 id
+                                let id: j1939::ExtendedId = id.into();
 
-                            // is this message for us?
-                            match id.pgn {
-                                Pgn::Destination(pgn) => match pgn {
-                                    PGN_START_PRECHARGE => cx
-                                        .shared
-                                        .isolator
-                                        .lock(|iso| iso.start_precharge()),
-                                    PGN_ISOLATE => cx
-                                        .shared
-                                        .isolator
-                                        .lock(|iso| iso.isolate()),
-                                    _ => {}
-                                },
-                                _ => {} // ignore broadcast messages
+                                // is this message for us?
+                                match id.pgn {
+                                    Pgn::Destination(pgn) => match pgn {
+                                        PGN_START_PRECHARGE => {
+                                            cx.shared.isolator_wd_fed.lock(
+                                                |time| {
+                                                    *time =
+                                                        Some(monotonics::now());
+                                                },
+                                            );
+
+                                            cx
+                                            .shared
+                                            .isolator
+                                            .lock(|iso| iso.start_precharge())
+                                        },
+                                        PGN_ISOLATE => cx
+                                            .shared
+                                            .isolator
+                                            .lock(|iso| iso.isolate()),
+                                        PGN_FEED_WATCHDOG => {
+                                            cx.shared.isolator_wd_fed.lock(
+                                                |time| {
+                                                    *time =
+                                                        Some(monotonics::now());
+                                                },
+                                            );
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {} // ignore broadcast messages
+                                }
                             }
                         }
-                    },
+                    }
                     Err(nb::Error::Other(_)) => {} // go to next frame
                     Err(nb::Error::WouldBlock) => break, // done
                 }
