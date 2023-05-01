@@ -5,6 +5,7 @@ use stm32l4xx_hal::{
     gpio::{Pin, L8},
 };
 
+/// Thermistor instance.
 pub struct Thermistor {
     pin: Pin<Analog, L8, 'A', 0>,
     slope: f32,
