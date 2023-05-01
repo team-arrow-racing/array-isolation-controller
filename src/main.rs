@@ -286,21 +286,21 @@ mod app {
         isolator_watchdog::spawn_after(100.millis().into()).unwrap();
     }
 
-    // RX 0 interrupt pending handler.
+    /// RX 0 interrupt pending handler.
     #[task(priority = 2, binds = CAN1_RX0)]
     fn can_rx0_pending(_: can_rx0_pending::Context) {
         defmt::trace!("task: can rx0 pending");
         can_frame_handler::spawn().unwrap();
     }
 
-    // RX 1 interrupt pending handler.
+    /// RX 1 interrupt pending handler.
     #[task(priority = 2, binds = CAN1_RX1)]
     fn can_rx1_pending(_: can_rx1_pending::Context) {
         defmt::trace!("task: can rx1 pending");
         can_frame_handler::spawn().unwrap();
     }
 
-    // Process can frames.
+    /// Process can frames.
     #[task(priority = 1, shared = [can, isolator, isolator_wd_fed])]
     fn can_frame_handler(mut cx: can_frame_handler::Context) {
         defmt::trace!("task: can receive");
