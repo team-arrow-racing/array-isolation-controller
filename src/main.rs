@@ -257,7 +257,9 @@ mod app {
             // check temporal watchdog
             cx.shared.isolator_wd_fed.lock(|last_fed| {
                 if let Some(fed) = last_fed {
-                    if time.checked_duration_since(*fed).unwrap() > Duration::millis(500) {
+                    if time.checked_duration_since(*fed).unwrap()
+                        > Duration::millis(500)
+                    {
                         isolator.isolate();
                     }
                 } else {
@@ -268,7 +270,7 @@ mod app {
             // check thermal watchdog
             cx.shared.adc.lock(|adc| {
                 let temperature = cx.local.thermistor.read(adc);
-    
+
                 match temperature {
                     Ok(t) => {
                         // temperature over 50 degrees
@@ -310,11 +312,10 @@ mod app {
                                                 },
                                             );
 
-                                            cx
-                                            .shared
-                                            .isolator
-                                            .lock(|iso| iso.start_precharge())
-                                        },
+                                            cx.shared.isolator.lock(|iso| {
+                                                iso.start_precharge()
+                                            })
+                                        }
                                         PGN_ISOLATE => cx
                                             .shared
                                             .isolator
