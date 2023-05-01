@@ -74,7 +74,7 @@ mod app {
     #[local]
     struct Local {
         watchdog: IndependentWatchdog,
-        status_led: ErasedPin<Output<PushPull>>,
+        led_status: ErasedPin<Output<PushPull>>,
         thermistor: Thermistor,
     }
 
@@ -124,7 +124,7 @@ mod app {
         );
 
         // configure status led
-        let status_led = gpioc
+        let led_status = gpioc
             .pc13
             .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper)
             .erase();
@@ -211,7 +211,7 @@ mod app {
             },
             Local {
                 watchdog,
-                status_led,
+                led_status,
                 thermistor,
             },
             init::Monotonics(mono),
@@ -231,13 +231,13 @@ mod app {
         run::spawn_after(10.millis().into()).unwrap();
     }
 
-    #[task(local = [status_led], shared = [can])]
+    #[task(local = [led_status], shared = [can])]
     fn heartbeat(mut cx: heartbeat::Context) {
         defmt::trace!("task: heartbeat");
 
-        cx.local.status_led.toggle();
+        cx.local.led_status.toggle();
 
-        if cx.local.status_led.is_set_low() {
+        if cx.local.led_status.is_set_low() {
             cx.shared.can.lock(|can| {
                 let _ = can.transmit(&com::heartbeat::message(DEVICE));
             });
