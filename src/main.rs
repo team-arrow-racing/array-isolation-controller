@@ -27,9 +27,7 @@ use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use solar_car::{
     com,
-    com::array::{PGN_FEED_WATCHDOG, PGN_ISOLATE, PGN_START_PRECHARGE},
-    device, j1939,
-    j1939::pgn::Pgn,
+    device,
 };
 use stm32l4xx_hal::{
     adc::ADC,
@@ -68,7 +66,6 @@ mod app {
             >,
         >,
         isolator: Isolator,
-        isolator_wd_fed: Option<Instant>,
     }
 
     #[local]
@@ -207,7 +204,6 @@ mod app {
                 adc,
                 can,
                 isolator,
-                isolator_wd_fed: None,
             },
             Local {
                 watchdog,
@@ -247,26 +243,11 @@ mod app {
         heartbeat::spawn_after(500.millis().into()).unwrap();
     }
 
-    #[task(priority = 3, local = [thermistor], shared = [adc, isolator, isolator_wd_fed])]
+    #[task(priority = 3, local = [thermistor], shared = [adc, isolator])]
     fn isolator_watchdog(mut cx: isolator_watchdog::Context) {
         defmt::trace!("task: isolator watchdog");
 
-        let time = monotonics::now();
-
         cx.shared.isolator.lock(|isolator| {
-            // check temporal watchdog
-            cx.shared.isolator_wd_fed.lock(|last_fed| {
-                if let Some(fed) = last_fed {
-                    if time.checked_duration_since(*fed).unwrap()
-                        > Duration::millis(500)
-                    {
-                        isolator.isolate();
-                    }
-                } else {
-                    isolator.isolate();
-                }
-            });
-
             // check thermal watchdog
             cx.shared.adc.lock(|adc| {
                 let temperature = cx.local.thermistor.read(adc);
@@ -301,7 +282,7 @@ mod app {
     }
 
     /// Process can frames.
-    #[task(priority = 1, shared = [can, isolator, isolator_wd_fed])]
+    #[task(priority = 1, shared = [can, isolator])]
     fn can_frame_handler(mut cx: can_frame_handler::Context) {
         defmt::trace!("task: can receive");
 
