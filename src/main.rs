@@ -319,43 +319,8 @@ mod app {
                                         .isolator
                                         .lock(|iso| iso.start_precharge())
                                 }
-                            } // not for us
-                            Id::Extended(id) => {
-                                // convert to a J1939 id
-                                let id: j1939::ExtendedId = id.into();
-
-                                // is this message for us?
-                                match id.pgn {
-                                    Pgn::Destination(pgn) => match pgn {
-                                        PGN_START_PRECHARGE => {
-                                            cx.shared.isolator_wd_fed.lock(
-                                                |time| {
-                                                    *time =
-                                                        Some(monotonics::now());
-                                                },
-                                            );
-
-                                            cx.shared.isolator.lock(|iso| {
-                                                iso.start_precharge()
-                                            })
-                                        }
-                                        PGN_ISOLATE => cx
-                                            .shared
-                                            .isolator
-                                            .lock(|iso| iso.isolate()),
-                                        PGN_FEED_WATCHDOG => {
-                                            cx.shared.isolator_wd_fed.lock(
-                                                |time| {
-                                                    *time =
-                                                        Some(monotonics::now());
-                                                },
-                                            );
-                                        }
-                                        _ => {}
-                                    },
-                                    _ => {} // ignore broadcast messages
-                                }
                             }
+                            Id::Extended(_) => {} // not used
                         }
                     }
                     Err(nb::Error::Other(_)) => {} // go to next frame
