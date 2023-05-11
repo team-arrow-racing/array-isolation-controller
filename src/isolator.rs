@@ -13,7 +13,7 @@ type Duration = crate::app::Duration;
 type Instant = crate::app::Instant;
 
 /// Isolator state.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IsolatorState {
     Isolated,
     Precharging { state: PrechargeState },
@@ -21,7 +21,7 @@ pub enum IsolatorState {
 }
 
 /// Precharge state.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PrechargeState {
     Negative { start: Instant },
     Charging { start: Instant },
@@ -38,6 +38,7 @@ pub struct Contactors {
 pub struct Isolator {
     state: IsolatorState,
     contactors: Contactors,
+    comms_watchdog_last_fed: Option<Instant>,
 }
 
 impl Isolator {
@@ -46,6 +47,7 @@ impl Isolator {
         Isolator {
             state: IsolatorState::Isolated,
             contactors,
+            comms_watchdog_last_fed: None,
         }
     }
 
@@ -58,6 +60,7 @@ impl Isolator {
     ///
     /// This will panic if not in the isolated state.
     pub fn engage(&mut self) {
+        // update state if necessary
         match self.state {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");
@@ -68,13 +71,17 @@ impl Isolator {
                 };
                 self.update_outputs();
             }
-            _ => {}, // precharge has already started
+            _ => {} // precharge has already started
         }
+
+        // feed watchdog
+        self.comms_watchdog_last_fed = Some(monotonic::now());
     }
 
     /// Move the isolator into the isolated state instantly.
     pub fn isolate(&mut self) {
         self.state = IsolatorState::Isolated;
+        self.comms_watchdog_last_fed = None;
         self.update_outputs();
         defmt::trace!("contactors isolated.");
     }
@@ -130,8 +137,15 @@ impl Isolator {
     pub fn run(&mut self) {
         let now = monotonic::now();
 
+        // check isolator validity
+        if self.state != IsolatorState::Isolated {
+            if !self.comms_watchdog_valid() {
+                self.isolate();
+                return;
+            }
+        }
+
         match self.state {
-            IsolatorState::Isolated => {}
             IsolatorState::Precharging { state } => match state {
                 PrechargeState::Negative { start } => {
                     // only enough time for the negative contactor to swing over
@@ -156,9 +170,22 @@ impl Isolator {
                     }
                 }
             },
-            IsolatorState::Engaged => {}
+            _ => {} // do nothing for other states
         }
 
         self.update_outputs();
+    }
+
+    fn comms_watchdog_valid(&self) -> bool {
+        match self.comms_watchdog_last_fed {
+            None => false,
+            Some(then) => {
+                let now = monotonic::now();
+                match now.checked_duration_since(then) {
+                    Some(duration) => duration < Duration::millis(200),
+                    None => false
+                }
+            }
+        }
     }
 }
