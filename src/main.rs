@@ -311,7 +311,15 @@ mod app {
                 match can.receive() {
                     Ok(frame) => {
                         match frame.id() {
-                            Id::Standard(_) => {} // not for us
+                            Id::Standard(id) => {
+                                // EV Driver controls switch position
+                                if id.as_raw() == 0x505 {
+                                    // start precharge
+                                    cx.shared
+                                        .isolator
+                                        .lock(|iso| iso.start_precharge())
+                                }
+                            } // not for us
                             Id::Extended(id) => {
                                 // convert to a J1939 id
                                 let id: j1939::ExtendedId = id.into();
