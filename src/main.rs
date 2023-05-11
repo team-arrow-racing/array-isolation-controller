@@ -268,47 +268,42 @@ mod app {
     }
 
     /// RX 0 interrupt pending handler.
-    #[task(priority = 2, binds = CAN1_RX0)]
-    fn can_rx0_pending(_: can_rx0_pending::Context) {
+    #[task(priority = 2, shared = [can], binds = CAN1_RX0)]
+    fn can_rx0_pending(mut cx: can_rx0_pending::Context) {
         defmt::trace!("task: can rx0 pending");
-        can_frame_handler::spawn().unwrap();
+
+        cx.shared.can.lock(|can| match can.receive() {
+            Ok(frame) => can_frame_handler::spawn(frame).unwrap(),
+            _ => {}
+        })
     }
 
     /// RX 1 interrupt pending handler.
-    #[task(priority = 2, binds = CAN1_RX1)]
-    fn can_rx1_pending(_: can_rx1_pending::Context) {
+    #[task(priority = 2, shared = [can], binds = CAN1_RX1)]
+    fn can_rx1_pending(mut cx: can_rx1_pending::Context) {
         defmt::trace!("task: can rx1 pending");
-        can_frame_handler::spawn().unwrap();
+
+        cx.shared.can.lock(|can| match can.receive() {
+            Ok(frame) => can_frame_handler::spawn(frame).unwrap(),
+            _ => {}
+        })
     }
 
     /// Process can frames.
-    #[task(priority = 1, shared = [can, isolator])]
-    fn can_frame_handler(mut cx: can_frame_handler::Context) {
+    #[task(priority = 1, shared = [can, isolator], capacity = 100)]
+    fn can_frame_handler(mut cx: can_frame_handler::Context, frame: Frame) {
         defmt::trace!("task: can receive");
 
-        cx.shared.can.lock(|can| {
-            // receive messages until there is none left
-            loop {
-                match can.receive() {
-                    Ok(frame) => {
-                        match frame.id() {
-                            Id::Standard(id) => {
-                                // EV Driver controls switch position
-                                if id.as_raw() == 0x505 {
-                                    // start precharge
-                                    cx.shared
-                                        .isolator
-                                        .lock(|iso| iso.engage())
-                                }
-                            }
-                            Id::Extended(_) => {} // not used
-                        }
-                    }
-                    Err(nb::Error::Other(_)) => {} // go to next frame
-                    Err(nb::Error::WouldBlock) => break, // done
+        match frame.id() {
+            Id::Standard(id) => {
+                // EV Driver controls switch position
+                if id.as_raw() == 0x505 {
+                    // start precharge
+                    cx.shared.isolator.lock(|iso| iso.engage())
                 }
             }
-        })
+            Id::Extended(_) => {} // not used
+        }
     }
 }
 
