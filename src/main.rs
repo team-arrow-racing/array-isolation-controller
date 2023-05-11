@@ -22,13 +22,10 @@
 use defmt_rtt as _;
 use panic_probe as _;
 
-use bxcan::{filter::Mask32, Id, Interrupts};
+use bxcan::{filter::Mask32, Id, Interrupts, Frame};
 use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
-use solar_car::{
-    com,
-    device,
-};
+use solar_car::{com, device};
 use stm32l4xx_hal::{
     adc::ADC,
     can::Can,
@@ -200,11 +197,7 @@ mod app {
         heartbeat::spawn().unwrap();
 
         (
-            Shared {
-                adc,
-                can,
-                isolator,
-            },
+            Shared { adc, can, isolator },
             Local {
                 watchdog,
                 led_status,
