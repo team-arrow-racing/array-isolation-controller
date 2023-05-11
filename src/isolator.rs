@@ -57,7 +57,7 @@ impl Isolator {
     /// Start the precharge process.
     ///
     /// This will panic if not in the isolated state.
-    pub fn start_precharge(&mut self) {
+    pub fn engage(&mut self) {
         match self.state {
             IsolatorState::Isolated => {
                 defmt::trace!("contactors common negative.");

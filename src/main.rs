@@ -317,7 +317,7 @@ mod app {
                                     // start precharge
                                     cx.shared
                                         .isolator
-                                        .lock(|iso| iso.start_precharge())
+                                        .lock(|iso| iso.engage())
                                 }
                             }
                             Id::Extended(_) => {} // not used
