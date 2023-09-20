@@ -87,7 +87,7 @@ mod app {
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
-        let mut _gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
+        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
         let mut gpioc = cx.device.GPIOC.split(&mut rcc.ahb2);
 
         // configure system clock
@@ -220,7 +220,7 @@ mod app {
 
     #[task(shared = [isolator], local = [watchdog])]
     fn run(mut cx: run::Context) {
-        // defmt::trace!("task: run");
+        defmt::trace!("task: run");
 
         cx.shared.isolator.lock(|isolator| {
             isolator.run();
@@ -305,56 +305,46 @@ mod app {
     fn can_frame_handler(mut cx: can_frame_handler::Context) {
         defmt::trace!("task: can receive");
 
-        cx.shared.can.lock(|can| {
-            // receive messages until there is none left
-            loop {
-                match can.receive() {
-                    Ok(frame) => {
-                        match frame.id() {
-                            Id::Standard(_) => {} // not for us
-                            Id::Extended(id) => {
-                                // convert to a J1939 id
-                                let id: j1939::ExtendedId = id.into();
+        cx.shared.can.lock(|can| loop {
+            let frame = match can.receive() {
+                Ok(frame) => frame,
+                Err(nb::Error::WouldBlock) => break,
+                Err(nb::Error::Other(_)) => continue,
+            };
 
-                                // is this message for us?
-                                match id.pgn {
-                                    Pgn::Destination(pgn) => match pgn {
-                                        PGN_START_PRECHARGE => {
-                                            cx.shared.isolator_wd_fed.lock(
-                                                |time| {
-                                                    *time =
-                                                        Some(monotonics::now());
-                                                },
-                                            );
+            let id = match frame.id() {
+                Id::Standard(_) => continue,
+                Id::Extended(id) => id
+            };
 
-                                            cx.shared.isolator.lock(|iso| {
-                                                iso.start_precharge()
-                                            })
-                                        }
-                                        PGN_ISOLATE => cx
-                                            .shared
-                                            .isolator
-                                            .lock(|iso| iso.isolate()),
-                                        PGN_FEED_WATCHDOG => {
-                                            cx.shared.isolator_wd_fed.lock(
-                                                |time| {
-                                                    *time =
-                                                        Some(monotonics::now());
-                                                },
-                                            );
-                                        }
-                                        _ => {}
-                                    },
-                                    _ => {} // ignore broadcast messages
-                                }
-                            }
-                        }
-                    }
-                    Err(nb::Error::Other(_)) => {} // go to next frame
-                    Err(nb::Error::WouldBlock) => break, // done
-                }
+            let id: j1939::ExtendedId = id.into();
+
+            match id.pgn {
+                Pgn::Destination(pgn) => match pgn {
+                    PGN_START_PRECHARGE => {
+                        cx.shared.isolator_wd_fed.lock(|time| {
+                            *time = Some(monotonics::now());
+                        });
+
+                        cx.shared.isolator.lock(|iso| {
+                            iso.start_precharge()
+                        });
+                    },
+                    PGN_ISOLATE => {
+                        cx.shared.isolator.lock(|iso| {
+                            iso.isolate()
+                        });
+                    },
+                    PGN_FEED_WATCHDOG => {
+                        cx.shared.isolator_wd_fed.lock(|time| {
+                            *time = Some(monotonics::now());
+                        });
+                    },
+                   _ => {}
+                },
+                _ => {}
             }
-        })
+        });
     }
 }
 
