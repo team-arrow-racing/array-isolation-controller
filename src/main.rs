@@ -22,7 +22,7 @@
 use defmt_rtt as _;
 use panic_probe as _;
 
-use bxcan::{filter::Mask32, Id, Interrupts};
+use bxcan::{filter::Mask32, Frame, Id, Interrupts};
 use cortex_m::delay::Delay;
 use dwt_systick_monotonic::{fugit, DwtSystick};
 use solar_car::{
@@ -57,16 +57,13 @@ mod app {
     type MonoTimer = DwtSystick<SYSCLK>;
     pub type Duration = fugit::TimerDuration<u64, SYSCLK>;
     pub type Instant = fugit::TimerInstant<u64, SYSCLK>;
+    pub type Can1Pins =
+        (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>);
 
     #[shared]
     struct Shared {
         adc: ADC,
-        can: bxcan::Can<
-            Can<
-                CAN1,
-                (PA12<Alternate<PushPull, 9>>, PA11<Alternate<PushPull, 9>>),
-            >,
-        >,
+        can: bxcan::Can<Can<CAN1, Can1Pins>>,
         isolator: Isolator,
         isolator_wd_fed: Option<Instant>,
     }
@@ -287,64 +284,67 @@ mod app {
     }
 
     /// RX 0 interrupt pending handler.
-    #[task(priority = 2, binds = CAN1_RX0)]
-    fn can_rx0_pending(_: can_rx0_pending::Context) {
+    #[task(priority = 2, shared = [can], binds = CAN1_RX0)]
+    fn can_rx0_pending(mut cx: can_rx0_pending::Context) {
         defmt::trace!("task: can rx0 pending");
-        can_frame_handler::spawn().unwrap();
+
+        cx.shared.can.lock(|can| match can.receive() {
+            Ok(frame) => can_receive::spawn(frame).unwrap(),
+            _ => {}
+        })
     }
 
     /// RX 1 interrupt pending handler.
-    #[task(priority = 2, binds = CAN1_RX1)]
-    fn can_rx1_pending(_: can_rx1_pending::Context) {
+    #[task(priority = 2, shared = [can], binds = CAN1_RX1)]
+    fn can_rx1_pending(mut cx: can_rx1_pending::Context) {
         defmt::trace!("task: can rx1 pending");
-        can_frame_handler::spawn().unwrap();
+
+        cx.shared.can.lock(|can| match can.receive() {
+            Ok(frame) => can_receive::spawn(frame).unwrap(),
+            _ => {}
+        })
     }
 
-    /// Process can frames.
-    #[task(priority = 1, shared = [can, isolator, isolator_wd_fed])]
-    fn can_frame_handler(mut cx: can_frame_handler::Context) {
+    #[task(priority = 1, shared = [isolator, isolator_wd_fed], capacity=100)]
+    fn can_receive(mut cx: can_receive::Context, frame: Frame) {
         defmt::trace!("task: can receive");
-
-        cx.shared.can.lock(|can| loop {
-            let frame = match can.receive() {
-                Ok(frame) => frame,
-                Err(nb::Error::WouldBlock) => break,
-                Err(nb::Error::Other(_)) => continue,
-            };
-
-            let id = match frame.id() {
-                Id::Standard(_) => continue,
-                Id::Extended(id) => id
-            };
-
-            let id: j1939::ExtendedId = id.into();
-
-            match id.pgn {
-                Pgn::Destination(pgn) => match pgn {
-                    PGN_START_PRECHARGE => {
-                        cx.shared.isolator_wd_fed.lock(|time| {
-                            *time = Some(monotonics::now());
-                        });
-
-                        cx.shared.isolator.lock(|iso| {
-                            iso.start_precharge()
-                        });
-                    },
-                    PGN_ISOLATE => {
-                        cx.shared.isolator.lock(|iso| {
-                            iso.isolate()
-                        });
-                    },
-                    PGN_FEED_WATCHDOG => {
-                        cx.shared.isolator_wd_fed.lock(|time| {
-                            *time = Some(monotonics::now());
-                        });
-                    },
-                   _ => {}
-                },
-                _ => {}
+        let id = match frame.id() {
+            Id::Standard(id) => {
+                defmt::debug!("STD FRAME: {:?} {:?}", id.as_raw(), frame);
+                return;
             }
-        });
+            Id::Extended(id) => id,
+        };
+
+        let id: j1939::ExtendedId = id.into();
+
+        defmt::debug!("EXT FRAME: {:?} {:?}", id.to_bits(), frame);
+
+        match id.pgn {
+            Pgn::Destination(pgn) => match pgn {
+                PGN_START_PRECHARGE => {
+                    cx.shared.isolator_wd_fed.lock(|time| {
+                        *time = Some(monotonics::now());
+                    });
+
+                    cx.shared.isolator.lock(|iso| {
+                        iso.start_precharge()
+                    });
+                },
+                PGN_ISOLATE => {
+                    cx.shared.isolator.lock(|iso| {
+                        iso.isolate()
+                    });
+                },
+                PGN_FEED_WATCHDOG => {
+                    cx.shared.isolator_wd_fed.lock(|time| {
+                        *time = Some(monotonics::now());
+                    });
+                },
+               _ => {}
+            },
+            _ => {}
+        }
     }
 }
 
