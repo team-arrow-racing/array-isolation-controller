@@ -326,21 +326,17 @@ mod app {
                         *time = Some(monotonics::now());
                     });
 
-                    cx.shared.isolator.lock(|iso| {
-                        iso.start_precharge()
-                    });
-                },
+                    cx.shared.isolator.lock(|iso| iso.start_precharge());
+                }
                 PGN_ISOLATE => {
-                    cx.shared.isolator.lock(|iso| {
-                        iso.isolate()
-                    });
-                },
+                    cx.shared.isolator.lock(|iso| iso.isolate());
+                }
                 PGN_FEED_WATCHDOG => {
                     cx.shared.isolator_wd_fed.lock(|time| {
                         *time = Some(monotonics::now());
                     });
-                },
-               _ => {}
+                }
+                _ => {}
             },
             _ => {}
         }
