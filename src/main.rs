@@ -84,7 +84,6 @@ mod app {
         let mut rcc = cx.device.RCC.constrain();
         let mut pwr = cx.device.PWR.constrain(&mut rcc.apb1r1);
         let mut gpioa = cx.device.GPIOA.split(&mut rcc.ahb2);
-        let mut gpiob = cx.device.GPIOB.split(&mut rcc.ahb2);
         let mut gpioc = cx.device.GPIOC.split(&mut rcc.ahb2);
 
         // configure system clock
